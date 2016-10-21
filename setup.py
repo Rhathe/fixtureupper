@@ -1,9 +1,9 @@
 from setuptools import setup
 
 setup(
-    name='fixture-generator',
+    name='fixture_generator',
     version='0.0.1',
-    packages=['fixture-generator'],
+    packages=['fixture_generator'],
     url='https://github.com/Rhathe/Fixture-Generator',
     license='MIT',
     author='Ramon Sandoval',
