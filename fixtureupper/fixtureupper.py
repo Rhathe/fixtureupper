@@ -107,7 +107,7 @@ class ModelFixtureUpper(BaseFixtureUpper):
         self._model_id = self.start_id
 
         if getattr(self, 'model', None):
-            # Load the primary key of model into fixture generator
+            # Load the primary key of model into fixture upper
             self.attr_key = self._get_model_attr_key()
             setattr(self, self.attr_key, self.start_id)
 
