@@ -1,10 +1,10 @@
 from setuptools import setup
 
 setup(
-    name='fixture_generator',
-    version='0.0.2',
-    packages=['fixture_generator'],
-    url='https://github.com/Rhathe/Fixture_Generator',
+    name='FixtureGenerator',
+    version='0.0.1',
+    packages=['FixtureGenerator'],
+    url='https://github.com/Rhathe/FixtureGenerator',
     license='MIT',
     author='Ramon Sandoval',
     description='SqlAlchemy Fixture Generator',
