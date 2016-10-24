@@ -11,16 +11,16 @@ from sqlalchemy.inspection import inspect as sqlalchemy_inspect
 
 
 # Watch when new FixtureUppers are created and register them to the class's global dictionary
-class FixtureWatcher(type):
+class UpperWatcher(type):
     def __init__(cls, name, bases, clsdict):
         cls._GENERATOR_KEY = cls.get_generator_class_key()
         if cls._GENERATOR_KEY:
             cls._generator_classes[cls._GENERATOR_KEY] = cls
-        super(FixtureWatcher, cls).__init__(name, bases, clsdict)
+        super(UpperWatcher, cls).__init__(name, bases, clsdict)
 
 
 class BaseFixtureUpper(object):
-    __metaclass__ = FixtureWatcher
+    __metaclass__ = UpperWatcher
     _generator_classes = {}
     generator_aliases = {}
 
@@ -69,7 +69,7 @@ class BaseFixtureUpper(object):
     def get_passed_kwarg_keys(self):
         return ['start_id', 'seed']
 
-    def get_generator(self, key, **kwargs):
+    def get_upper(self, key, **kwargs):
         # Get alias of key if available
         key = self.generator_aliases.get(key, key)
 
@@ -97,13 +97,13 @@ class BaseFixtureUpper(object):
         raise NotImplementedError
 
 
-class ModelFixtureUpper(BaseFixtureUpper):
+class _ModelFixtureUpper(BaseFixtureUpper):
     # Model Fixture Uppers have own registry of generator classes
     _generator_classes = {}
     required_attributes = []
 
     def __init__(self, *args, **kwargs):
-        super(ModelFixtureUpper, self).__init__(*args, **kwargs)
+        super(_ModelFixtureUpper, self).__init__(*args, **kwargs)
         self._model_id = self.start_id
 
         if getattr(self, 'model', None):
@@ -354,3 +354,8 @@ class ModelFixtureUpper(BaseFixtureUpper):
             return fixtures
         else:
             return self._generate(**kwargs)
+
+def UpperRegister():
+    return type('ModelFixtureUpper', (_ModelFixtureUpper,), {
+        '_generator_classes': {},
+    })
