@@ -310,7 +310,7 @@ class _ModelFixtureUpper(BaseFixtureUpper):
             elif callable(value):
                 generator_functions[key] = value
 
-        for key in generator_functions.keys() + relations.keys():
+        for key in frozenset(generator_functions.keys()).union(frozenset(relations.keys())):
             model_values.pop(key, None)
 
         # Set fixture's attributes with model_values dict and relation dict
