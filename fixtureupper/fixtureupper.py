@@ -10,7 +10,7 @@ from random import Random
 from sqlalchemy.inspection import inspect as sqlalchemy_inspect
 
 
-# Watch when new FixtureGenerators are created and register them to the class's global dictionary
+# Watch when new FixtureUppers are created and register them to the class's global dictionary
 class FixtureWatcher(type):
     def __init__(cls, name, bases, clsdict):
         cls._GENERATOR_KEY = cls.get_generator_class_key()
@@ -19,7 +19,7 @@ class FixtureWatcher(type):
         super(FixtureWatcher, cls).__init__(name, bases, clsdict)
 
 
-class BaseFixtureGenerator(object):
+class BaseFixtureUpper(object):
     __metaclass__ = FixtureWatcher
     _generator_classes = {}
     generator_aliases = {}
@@ -44,13 +44,13 @@ class BaseFixtureGenerator(object):
 
     @classmethod
     def get_generator_class_key(cls):
-        # Don't register Base Fixture Generator Classes
-        if cls.__name__ == 'BaseFixtureGenerator':
+        # Don't register Base Fixture Upper Classes
+        if cls.__name__ == 'BaseFixtureUpper':
             return None
 
         key = cls.__name__
         if key in cls._generator_classes:
-            raise Exception('Fixture Generator with name %s exists, use another name' % key)
+            raise Exception('Fixture Upper with name %s exists, use another name' % key)
         return key
 
     def get_all_fixtures(self):
@@ -97,13 +97,13 @@ class BaseFixtureGenerator(object):
         raise NotImplementedError
 
 
-class ModelFixtureGenerator(BaseFixtureGenerator):
-    # Model Fixture Generators have own registry of generator classes
+class ModelFixtureUpper(BaseFixtureUpper):
+    # Model Fixture Uppers have own registry of generator classes
     _generator_classes = {}
     required_attributes = []
 
     def __init__(self, *args, **kwargs):
-        super(ModelFixtureGenerator, self).__init__(*args, **kwargs)
+        super(ModelFixtureUpper, self).__init__(*args, **kwargs)
         self._model_id = self.start_id
 
         if getattr(self, 'model', None):
