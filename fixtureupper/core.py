@@ -1,6 +1,7 @@
 from copy import deepcopy
 import datetime
 from decimal import Decimal
+from future.utils import iteritems
 import inspect
 import json
 import operator
@@ -57,7 +58,7 @@ class BaseFixtureUpper(with_metaclass(UpperWatcher, object)):
         list_of_lists = [
             instance.fixtures
             for key, instance
-            in self.generator_instances.iteritems()
+            in iteritems(self.generator_instances)
         ]
         return [fixture for fixture_list in list_of_lists for fixture in fixture_list]
 
@@ -156,7 +157,7 @@ class _ModelFixtureUpper(BaseFixtureUpper):
 
         # Transform python object into json compatible representation
         def to_json(obj):
-            for python_object, transforms in cls.get_python_objects_for_json().iteritems():
+            for python_object, transforms in iteritems(cls.get_python_objects_for_json()):
                 if isinstance(obj, python_object):
                     return transforms['to_json'](obj)
             return obj
@@ -171,8 +172,8 @@ class _ModelFixtureUpper(BaseFixtureUpper):
                 fields = vars(f)
 
                 # Remove relation before writing to prevent circular json
-                removed_relations = {k: v for k, v in fields.iteritems() if _removeable_relation(f, k)}
-                for k, v in removed_relations.iteritems():
+                removed_relations = {k: v for k, v in iteritems(fields) if _removeable_relation(f, k)}
+                for k, v in iteritems(removed_relations):
                     # delattr removes completely if list, must copy
                     removed_relations[k] = v[:] if isinstance(v, list) else v
                     delattr(f, k)
@@ -181,7 +182,7 @@ class _ModelFixtureUpper(BaseFixtureUpper):
                 del fields['_sa_instance_state']
 
                 # Delete null values from json
-                remove = [k for k, v in fields.iteritems() if v is None]
+                remove = [k for k, v in iteritems(fields) if v is None]
                 for k in remove:
                     del fields[k]
 
@@ -191,7 +192,7 @@ class _ModelFixtureUpper(BaseFixtureUpper):
                 })
 
                 # Reset removed relations
-                for k, v in removed_relations.iteritems():
+                for k, v in iteritems(removed_relations):
                     setattr(f, k, v)
 
             # Sort output array by model name first
@@ -207,7 +208,7 @@ class _ModelFixtureUpper(BaseFixtureUpper):
         # Transform json representation of python object to python object
         def from_json(obj):
             if '__class__' in obj:
-                for python_object, transforms in cls.get_python_objects_for_json().iteritems():
+                for python_object, transforms in iteritems(cls.get_python_objects_for_json()):
                     if obj['__class__'] == python_object.__name__:
                         return transforms['from_json'](obj)
             return obj
@@ -265,7 +266,7 @@ class _ModelFixtureUpper(BaseFixtureUpper):
                 related_model_pk = list(local_columns.foreign_keys)[0].column.key
                 setattr(model, foreign_key, getattr(related_model, related_model_pk))
 
-        for k, relation in relations.iteritems():
+        for k, relation in iteritems(relations):
             # Set fixture relation, backref's automatically made by sqlAlchemy
             setattr(fixture, k, relation)
             _property = getattr(type(fixture), k).property
@@ -280,7 +281,7 @@ class _ModelFixtureUpper(BaseFixtureUpper):
     def update_fixtures_with_data(self, data, fixtures=None):
         fixtures = fixtures or self.fixtures
         for i, d in enumerate(data):
-            for key, val in d.iteritems():
+            for key, val in iteritems(d):
                 setattr(fixtures[i], key, val)
 
     def _generate(self, **kwargs):
@@ -300,7 +301,7 @@ class _ModelFixtureUpper(BaseFixtureUpper):
         generator_functions = {}
 
         relationships = sqlalchemy_inspect(self.model).relationships
-        for key, value in model_values.iteritems():
+        for key, value in iteritems(model_values):
             # If model values are relations, move them to relations dict
             if relationships.get(key):
                 relations[key] = value
@@ -317,7 +318,7 @@ class _ModelFixtureUpper(BaseFixtureUpper):
         self.set_relations(fixture, relations)
 
         # Call generator functions after initial values/relations have been set
-        for key, fn in generator_functions.iteritems():
+        for key, fn in iteritems(generator_functions):
             setattr(fixture, key, fn(self, fixture))
 
         # Check to make sure required attibutes have been set
