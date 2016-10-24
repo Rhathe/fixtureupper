@@ -1,7 +1,10 @@
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+
 from unittest import TestCase
 
-from fixtureupper import UpperRegister
-from models import Article, Author
+from fixtureupper.core import UpperRegister
+from tests.unit.models import Article, Author
 
 
 class TestModelFixtureUpper(TestCase):
