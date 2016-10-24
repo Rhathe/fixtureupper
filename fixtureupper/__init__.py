@@ -1,4 +1,4 @@
-from fixtureupper import UpperWatcher, UpperRegister
+from core import UpperWatcher, UpperRegister
 
 
 __all__ = [
