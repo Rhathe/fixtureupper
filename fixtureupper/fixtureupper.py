@@ -355,6 +355,7 @@ class _ModelFixtureUpper(BaseFixtureUpper):
         else:
             return self._generate(**kwargs)
 
+
 def UpperRegister():
     return type('ModelFixtureUpper', (_ModelFixtureUpper,), {
         '_generator_classes': {},
