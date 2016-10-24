@@ -1,2 +1,2 @@
-# Fixture-Generator
+# Fixture_Generator
 SqlAchemy Fixture Generator

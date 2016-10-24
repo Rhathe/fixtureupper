@@ -6,4 +6,4 @@ deploy:
     user: Ramon.Sandoval
     on:
         tags: true
-        repo: Rhathe/Fixture-Generator
+        repo: Rhathe/Fixture_Generator
