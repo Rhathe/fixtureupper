@@ -6,6 +6,7 @@ import json
 import operator
 import os
 from random import Random
+from six import with_metaclass
 
 from sqlalchemy.inspection import inspect as sqlalchemy_inspect
 
@@ -19,8 +20,7 @@ class UpperWatcher(type):
         super(UpperWatcher, cls).__init__(name, bases, clsdict)
 
 
-class BaseFixtureUpper(object):
-    __metaclass__ = UpperWatcher
+class BaseFixtureUpper(with_metaclass(UpperWatcher, object)):
     _generator_classes = {}
     generator_aliases = {}
 
