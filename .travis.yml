@@ -14,7 +14,7 @@ script:
 - tox
 deploy:
   provider: pypi
-  user: Ramon.Sandoval
+  user: Rhathe
   on:
     tags: true
     repo: Rhathe/fixtureupper
