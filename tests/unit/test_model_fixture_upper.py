@@ -1,13 +1,13 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
+import json
 
 from unittest import TestCase
 
 from fixtureupper.core import UpperRegister
 from tests.unit.models import Article, Author
 
-
-class TestModelFixtureUpper(TestCase):
+class BaseTestCase(TestCase):
     def setUp(self):
         self.ModelFixtureUpper = UpperRegister()
 
@@ -24,8 +24,10 @@ class TestModelFixtureUpper(TestCase):
         self.ArticleFixtureUpperClass = ArticleFixtureUpper
 
         self.au_fu = self.m_fu.get_upper('Author')
-        self.ar_fu = self.m_fu.get_upper('Article')
+        self.ar_fu = self.m_fu.get_upper('Article', start_id=250)
 
+
+class TestModelFixtureUpper(BaseTestCase):
     def test_register_fixture_uppers(self):
         self.assertEqual(type(self.m_fu.get_upper('Author')), self.AuthorFixtureUpperClass)
         self.assertEqual(type(self.m_fu.get_upper('Article')), self.ArticleFixtureUpperClass)
@@ -94,3 +96,60 @@ class TestModelFixtureUpper(TestCase):
         self.assertEqual(au_fixture.articles[0], ar_fixture)
         self.assertEqual(ar_fixture.author, au_fixture)
         self.assertEqual(ar_fixture.main_author_id, au_fixture.id)
+
+
+class TestModelFixtureUpperReadWrite(BaseTestCase):
+    def setUp(self):
+        super(TestModelFixtureUpperReadWrite, self).setUp()
+        self.json_dict = [
+            {
+                '__class__': 'Article',
+                '__value__': {'id': 250, 'main_author_id': 150}
+            },
+            {
+                '__class__': 'Article',
+                '__value__': {'id': 251, 'main_author_id': 150}
+            },
+            {
+                '__class__': 'Article',
+                '__value__': {'id': 252, 'main_author_id': 151}
+            },
+            {
+                '__class__': 'Author',
+                '__value__': {'id': 150}
+            },
+            {
+                '__class__': 'Author',
+                '__value__': {'id': 151}
+            },
+        ]
+
+    def test_get_current_fixtures_json(self):
+        ar_fixtures = self.ar_fu.generate(data=[{}, {}, {}])
+        au_fixtures = self.au_fu.generate(data=[
+            {
+                'articles': ar_fixtures[:2],
+            },
+            {
+                'articles': ar_fixtures[-1:],
+            }
+        ])
+
+        json_dict = json.loads(self.m_fu.get_current_fixtures_json())
+        self.assertEqual(json_dict, self.json_dict)
+
+    def test_get_fixtures_json(self):
+        json_str = json.dumps(self.json_dict)
+        fixtures = self.m_fu.get_fixtures_from_json(json_str)
+
+        self.assertEqual(fixtures[0].id, 250)
+        self.assertEqual(fixtures[0].main_author_id, 150)
+
+        self.assertEqual(fixtures[1].id, 251)
+        self.assertEqual(fixtures[1].main_author_id, 150)
+
+        self.assertEqual(fixtures[2].id, 252)
+        self.assertEqual(fixtures[2].main_author_id, 151)
+
+        self.assertEqual(fixtures[3].id, 150)
+        self.assertEqual(fixtures[4].id, 151)

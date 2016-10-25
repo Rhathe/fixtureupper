@@ -120,11 +120,16 @@ class _ModelFixtureUpper(BaseFixtureUpper):
             return None
 
     @classmethod
-    def make_obj_json(cls, obj, str_obj):
-        return {
+    def make_obj_json(cls, obj, str_obj, super_class=None):
+        obj_json = {
             '__class__': type(obj).__name__,
             '__value__': str_obj,
         }
+
+        if super_class:
+            obj_json['__super_class__'] = super_class
+
+        return obj_json
 
     @classmethod
     def dynamic_import_and_eval(cls, import_statement, eval_str):
@@ -135,7 +140,7 @@ class _ModelFixtureUpper(BaseFixtureUpper):
 
     @classmethod
     def get_python_objects_for_json(cls):
-        return {
+        pos = {
             datetime.datetime: {
                 'to_json': lambda obj: cls.make_obj_json(obj, repr(obj)),
                 'from_json': lambda obj: cls.dynamic_import_and_eval('import datetime', obj['__value__']),
@@ -146,58 +151,108 @@ class _ModelFixtureUpper(BaseFixtureUpper):
             },
         }
 
-    @classmethod
-    def print_fixtures(cls, savedir, fname, fixtures):
-        """Function to print model fixtures into generated file"""
-        if not fixtures:
-            raise RuntimeError
+        def get_from_json(model):
+            return lambda obj: model(**obj['__value__'])
 
+        for name, upper_class in iteritems(cls._generator_classes):
+            if getattr(upper_class, 'model', None):
+                pos[upper_class.model] = {
+                    'to_json': lambda obj: cls.get_fixture_to_json(obj),
+                    'from_json': get_from_json(upper_class.model),
+                }
+
+        return pos
+
+    @classmethod
+    def get_fixture_to_json(cls, fixture):
         def _removeable_relation(model, relation_prop):
             return bool(cls._get_relationship(model, relation_prop))
 
+        fields = vars(fixture)
+
+        # Remove relation before writing to prevent circular json
+        removed_relations = {k: v for k, v in iteritems(fields) if _removeable_relation(fixture, k)}
+        for k, v in iteritems(removed_relations):
+            # delattr removes completely if list, must copy
+            removed_relations[k] = v[:] if isinstance(v, list) else v
+            delattr(fixture, k)
+
+        fields = deepcopy(fields)
+        del fields['_sa_instance_state']
+
+        # Delete null values from json
+        remove = [k for k, v in iteritems(fields) if v is None]
+        for k in remove:
+            del fields[k]
+
+        # Reset removed relations
+        for k, v in iteritems(removed_relations):
+            setattr(fixture, k, v)
+
+        return cls.make_obj_json(fixture, fields)
+
+    def get_current_fixtures_json(self):
+        return self.get_fixtures_json(self.get_all_fixtures())
+
+    @classmethod
+    def get_fixtures_json(cls, fixtures):
+        if not fixtures:
+            raise RuntimeError
+
+        python_objects = cls.get_python_objects_for_json()
+
         # Transform python object into json compatible representation
         def to_json(obj):
-            for python_object, transforms in iteritems(cls.get_python_objects_for_json()):
+            # Check if type is directly in python_objects
+            transforms = python_objects.get(type(obj))
+            if transforms:
+                return transforms['to_json'](obj)
+
+            # Else check if superclass is in python_objects
+            for python_object, transforms in iteritems(python_objects):
                 if isinstance(obj, python_object):
                     return transforms['to_json'](obj)
             return obj
 
+        # Sort output array by model name first
+        out = [f for f in fixtures]
+
+        def compare(f1, f2):
+            n1 = type(f1).__name__
+            n2 = type(f2).__name__
+
+            if n1 > n2: return 1
+            elif n1 < n2: return -1
+            return 0
+
+        out.sort(cmp=compare)
+
+        return json.dumps(out, indent=4, default=to_json, sort_keys=True)
+
+    @classmethod
+    def print_fixtures(cls, savedir, fname, fixtures):
+        """Function to print model fixtures into generated file"""
         if not os.path.exists(savedir):
             os.makedirs(savedir)
 
-        # Write fixture as json to file
         with open('%s%s' % (savedir, fname), 'w') as fout:
-            out = []
-            for f in fixtures:
-                fields = vars(f)
+            fout.write(cls.get_fixtures_json(fixtures))
 
-                # Remove relation before writing to prevent circular json
-                removed_relations = {k: v for k, v in iteritems(fields) if _removeable_relation(f, k)}
-                for k, v in iteritems(removed_relations):
-                    # delattr removes completely if list, must copy
-                    removed_relations[k] = v[:] if isinstance(v, list) else v
-                    delattr(f, k)
+    @classmethod
+    def get_fixtures_from_json(cls, json_str):
+        python_objects = cls.get_python_objects_for_json()
+        po_by_name = {po.__name__: transforms for po, transforms in iteritems(python_objects)}
 
-                fields = deepcopy(fields)
-                del fields['_sa_instance_state']
+        # Transform json representation of python object to python object
+        # TODO Add ability to get using super_classes
+        def from_json(obj):
+            if '__class__' in obj:
+                transforms = po_by_name.get(obj['__class__'])
+                if transforms:
+                    return transforms['from_json'](obj)
+            return obj
 
-                # Delete null values from json
-                remove = [k for k, v in iteritems(fields) if v is None]
-                for k in remove:
-                    del fields[k]
-
-                out.append({
-                    'model': type(f).__name__,
-                    'fields': fields,
-                })
-
-                # Reset removed relations
-                for k, v in iteritems(removed_relations):
-                    setattr(f, k, v)
-
-            # Sort output array by model name first
-            out.sort(key=operator.itemgetter('model'))
-            json.dump(out, fout, indent=4, default=to_json, sort_keys=True)
+        return json.loads(json_str, object_hook=from_json)
 
     @classmethod
     def read_fixtures_json(cls, fname):
@@ -205,24 +260,8 @@ class _ModelFixtureUpper(BaseFixtureUpper):
         if not os.path.exists(fname):
             raise RuntimeError
 
-        # Transform json representation of python object to python object
-        def from_json(obj):
-            if '__class__' in obj:
-                for python_object, transforms in iteritems(cls.get_python_objects_for_json()):
-                    if obj['__class__'] == python_object.__name__:
-                        return transforms['from_json'](obj)
-            return obj
-
         with open(fname, 'r') as data_file:
-            fixture_data = json.load(data_file, object_hook=from_json)
-
-        # Create fixtures, setting appropriate fields and values
-        fixtures = []
-        for fixture in fixture_data:
-            fixture_record = cls._generator_classes[fixture['model']].model(**fixture['fields'])
-            fixtures.append(fixture_record)
-
-        return fixtures
+            return cls.get_fixtures_from_json(data_file.read())
 
     def _get_model_attr_key(self, model=None):
         try:
