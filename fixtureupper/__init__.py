@@ -1,10 +1,9 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from fixtureupper.core import UpperWatcher, UpperRegister
+from fixtureupper.register import UpperRegister
 
 
 __all__ = [
-    'UpperWatcher',
     'UpperRegister',
 ]

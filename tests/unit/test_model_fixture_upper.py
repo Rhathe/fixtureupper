@@ -4,22 +4,22 @@ import json
 
 from unittest import TestCase
 
-from fixtureupper.core import UpperRegister
+from fixtureupper.register import UpperRegister
 from tests.unit.models import Article, Author
 
 class BaseTestCase(TestCase):
     def setUp(self):
-        self.ModelFixtureUpper = UpperRegister('Model')
+        self.SqlAlchemyModelFixtureUpper = UpperRegister('SqlAlchemyModel')
 
-        class AuthorFixtureUpper(self.ModelFixtureUpper):
+        class AuthorFixtureUpper(self.SqlAlchemyModelFixtureUpper):
             model = Author
             defaults = {}
 
-        class ArticleFixtureUpper(self.ModelFixtureUpper):
+        class ArticleFixtureUpper(self.SqlAlchemyModelFixtureUpper):
             model = Article
             defaults = {}
 
-        self.m_fu = self.ModelFixtureUpper(start_id=150)
+        self.m_fu = self.SqlAlchemyModelFixtureUpper(start_id=150)
         self.AuthorFixtureUpperClass = AuthorFixtureUpper
         self.ArticleFixtureUpperClass = ArticleFixtureUpper
 
@@ -27,7 +27,7 @@ class BaseTestCase(TestCase):
         self.ar_fu = self.m_fu.get_upper('Article', start_id=250)
 
 
-class TestModelFixtureUpper(BaseTestCase):
+class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
     def test_register_fixture_uppers(self):
         self.assertEqual(type(self.m_fu.get_upper('Author')), self.AuthorFixtureUpperClass)
         self.assertEqual(type(self.m_fu.get_upper('Article')), self.ArticleFixtureUpperClass)
@@ -98,9 +98,9 @@ class TestModelFixtureUpper(BaseTestCase):
         self.assertEqual(ar_fixture.main_author_id, au_fixture.id)
 
 
-class TestModelFixtureUpperReadWrite(BaseTestCase):
+class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
     def setUp(self):
-        super(TestModelFixtureUpperReadWrite, self).setUp()
+        super(TestSqlAlchemyModelFixtureUpperReadWrite, self).setUp()
         self.json_dict = [
             {
                 '__class__': 'Article',

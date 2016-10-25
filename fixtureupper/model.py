@@ -1,15 +1,16 @@
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+
 from copy import deepcopy
 import datetime
 from decimal import Decimal
 from future.utils import iteritems
 import inspect
 import json
-import operator
 import os
-from random import Random
-from six import with_metaclass
 
-from sqlalchemy.inspection import inspect as sqlalchemy_inspect
+from fixtureupper.base import BaseFixtureUpper
+
 
 def cmp_to_key(mycmp):
     class K(object):
@@ -31,102 +32,16 @@ def cmp_to_key(mycmp):
     return K
 
 
-# Watch when new FixtureUppers are created and register them to the class's global dictionary
-class UpperWatcher(type):
-    def __init__(cls, name, bases, clsdict):
-        cls._GENERATOR_KEY = cls.get_generator_class_key()
-        if cls._GENERATOR_KEY:
-            cls._generator_classes[cls._GENERATOR_KEY] = cls
-        super(UpperWatcher, cls).__init__(name, bases, clsdict)
-
-
-class BaseFixtureUpper(with_metaclass(UpperWatcher, object)):
-    _generator_classes = {}
-    generator_aliases = {}
-
-    def __init__(self, start_id=1, seed=None, generator_instances=None, **kwargs):
-        self.start_id = start_id
-        self.seed = seed
-
-        self.fixtures = []
-        self.defaults = getattr(self, 'defaults', {})
-        self.seed_random()
-
-        if generator_instances is None:
-            generator_instances = {}
-
-        self.generator_instances = generator_instances
-
-        # Save most recent instance of generator
-        # to generator map
-        if getattr(self, '_GENERATOR_KEY', None):
-            self.generator_instances[self._GENERATOR_KEY] = self
-
-    @classmethod
-    def get_generator_class_key(cls):
-        # Don't register Base Fixture Upper Classes
-        if cls.__name__ == 'BaseFixtureUpper':
-            return None
-
-        key = cls.__name__
-        if key in cls._generator_classes:
-            raise Exception('Fixture Upper with name %s exists, use another name' % key)
-        return key
-
-    def get_all_fixtures(self):
-        list_of_lists = [
-            instance.fixtures
-            for key, instance
-            in iteritems(self.generator_instances)
-        ]
-        return [fixture for fixture_list in list_of_lists for fixture in fixture_list]
-
-    def seed_random(self, seed=None):
-        seed = seed or self.seed
-        self.random = Random()
-        self.random.seed(seed)
-
-    def get_passed_kwarg_keys(self):
-        return ['start_id', 'seed']
-
-    def get_upper(self, key, **kwargs):
-        # Get alias of key if available
-        key = self.generator_aliases.get(key, key)
-
-        if key not in self.generator_instances:
-            kwargs['generator_instances'] = self.generator_instances
-
-            for kw in self.get_passed_kwarg_keys():
-                if not kwargs.get(kw):
-                    kwargs[kw] = getattr(self, kw)
-
-            self._generator_classes[key](**kwargs)
-        return self.generator_instances[key]
-
-    def randint(self, *args):
-        return self.random.randint(*args)
-
-    def override_defaults(self, defaults):
-        # Make sure global class defaults are not overridden
-        self.defaults = dict(deepcopy(self.defaults), **defaults)
-
-    def reset_defaults(self):
-        self.defaults = self.__class__.defaults
-
-    def generate(self, **kwargs):
-        raise NotImplementedError
-
-
-class _ModelFixtureUpper(BaseFixtureUpper):
+class ModelFixtureUpper(BaseFixtureUpper):
     required_attributes = []
 
     def __init__(self, *args, **kwargs):
-        super(_ModelFixtureUpper, self).__init__(*args, **kwargs)
+        super(ModelFixtureUpper, self).__init__(*args, **kwargs)
         self._model_id = self.start_id
 
         if getattr(self, 'model', None):
             # Load the primary key of model into fixture upper
-            self.attr_key = self._get_model_attr_key()
+            self.attr_key = self.get_model_attr_key()
             setattr(self, self.attr_key, self.start_id)
 
     @classmethod
@@ -182,31 +97,7 @@ class _ModelFixtureUpper(BaseFixtureUpper):
 
     @classmethod
     def get_fixture_to_json(cls, fixture):
-        def _removeable_relation(model, relation_prop):
-            return bool(cls._get_relationship(model, relation_prop))
-
-        fields = vars(fixture)
-
-        # Remove relation before writing to prevent circular json
-        removed_relations = {k: v for k, v in iteritems(fields) if _removeable_relation(fixture, k)}
-        for k, v in iteritems(removed_relations):
-            # delattr removes completely if list, must copy
-            removed_relations[k] = v[:] if isinstance(v, list) else v
-            delattr(fixture, k)
-
-        fields = deepcopy(fields)
-        del fields['_sa_instance_state']
-
-        # Delete null values from json
-        remove = [k for k, v in iteritems(fields) if v is None]
-        for k in remove:
-            del fields[k]
-
-        # Reset removed relations
-        for k, v in iteritems(removed_relations):
-            setattr(fixture, k, v)
-
-        return cls.make_obj_json(fixture, fields)
+        raise NotImplementedError
 
     def get_current_fixtures_json(self):
         return self.get_fixtures_json(self.get_all_fixtures())
@@ -280,15 +171,8 @@ class _ModelFixtureUpper(BaseFixtureUpper):
         with open(fname, 'r') as data_file:
             return cls.get_fixtures_from_json(data_file.read())
 
-    def _get_model_attr_key(self, model=None):
-        try:
-            model = model or self.model
-            # Get model class, not instance of model
-            if not inspect.isclass(model):
-                model = type(model)
-            return sqlalchemy_inspect(model).primary_key[0].name
-        except:
-            return None
+    def get_model_attr_key(self, model=None):
+        raise NotImplementedError
 
     def get_model_id(self, inc=True):
         """
@@ -301,38 +185,12 @@ class _ModelFixtureUpper(BaseFixtureUpper):
             setattr(self, self.attr_key, v + 1)
         return v
 
-    @classmethod
-    def _get_relationship(cls, model, relation_prop):
-        return sqlalchemy_inspect(type(model)).relationships.get(relation_prop)
-
     def set_relations(self, fixture, relations):
-        # set model's (i.e. Article)
-        # foreign_key (i.e. main_author_id)
-        # to primary_key of related_model (i.e. Author's author_id)
-        def _set_relation_ids(model, related_model, relation_prop):
-            relationship = self._get_relationship(model, relation_prop)
-            if not relationship:
-                return
+        raise NotImplementedError
 
-            local_columns = list(relationship.local_columns)[0]
-
-            # Only set keys if it's a foreign key of the model
-            if local_columns.foreign_keys:
-                foreign_key = local_columns.key
-                related_model_pk = list(local_columns.foreign_keys)[0].column.key
-                setattr(model, foreign_key, getattr(related_model, related_model_pk))
-
-        for k, relation in iteritems(relations):
-            # Set fixture relation, backref's automatically made by sqlAlchemy
-            setattr(fixture, k, relation)
-            _property = getattr(type(fixture), k).property
-            back_relation = _property.backref or _property.back_populates
-
-            if not isinstance(relation, list):
-                relation = [relation]
-            for r in relation:
-                _set_relation_ids(fixture, r, k)
-                _set_relation_ids(r, fixture, back_relation)
+    @classmethod
+    def get_relationships(cls):
+        raise NotImplementedError
 
     def update_fixtures_with_data(self, data, fixtures=None):
         fixtures = fixtures or self.fixtures
@@ -353,7 +211,7 @@ class _ModelFixtureUpper(BaseFixtureUpper):
 
         generator_functions = {}
 
-        relationships = sqlalchemy_inspect(self.model).relationships
+        relationships = self.get_relationships()
         for key, value in iteritems(model_values):
             # If model values are relations, move them to relations dict
             if relationships.get(key):
@@ -390,15 +248,3 @@ class _ModelFixtureUpper(BaseFixtureUpper):
             return fixtures
         else:
             return self._generate(data=data, **kwargs)
-
-
-def UpperRegister(upper_type):
-    if upper_type == 'Base':
-        return type('BaseFixtureUpper', (BaseFixtureUpper,), {
-            '_generator_classes': {},
-        })
-    elif upper_type == 'Model':
-        return type('ModelFixtureUpper', (_ModelFixtureUpper,), {
-            '_generator_classes': {},
-        })
-    raise RuntimeError

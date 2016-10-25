@@ -3,14 +3,14 @@ from __future__ import (absolute_import, division,
 
 from unittest import TestCase
 
-from fixtureupper.core import UpperRegister
+from fixtureupper.register import UpperRegister
 from tests.unit.models import Article, Author
 
 
 class TestUpperRegister(TestCase):
     def setUp(self):
-        self.ModelFixtureUpper1 = UpperRegister('Model')
-        self.ModelFixtureUpper2 = UpperRegister('Model')
+        self.ModelFixtureUpper1 = UpperRegister('SqlAlchemyModel')
+        self.ModelFixtureUpper2 = UpperRegister('SqlAlchemyModel')
 
         class AuthorFixtureUpper(self.ModelFixtureUpper1):
             model = Author
