@@ -11,6 +11,25 @@ from six import with_metaclass
 
 from sqlalchemy.inspection import inspect as sqlalchemy_inspect
 
+def cmp_to_key(mycmp):
+    class K(object):
+        def __init__(self, obj, *args):
+            self.obj = obj
+        def __lt__(self, other):
+            return mycmp(self.obj, other.obj) < 0
+        def __gt__(self, other):
+            return mycmp(self.obj, other.obj) > 0
+        def __eq__(self, other):
+            return mycmp(self.obj, other.obj) == 0
+        def __le__(self, other):
+            return mycmp(self.obj, other.obj) <= 0
+        def __ge__(self, other):
+            return mycmp(self.obj, other.obj) >= 0
+        def __ne__(self, other):
+            return mycmp(self.obj, other.obj) != 0
+
+    return K
+
 
 # Watch when new FixtureUppers are created and register them to the class's global dictionary
 class UpperWatcher(type):
@@ -99,8 +118,6 @@ class BaseFixtureUpper(with_metaclass(UpperWatcher, object)):
 
 
 class _ModelFixtureUpper(BaseFixtureUpper):
-    # Model Fixture Uppers have own registry of generator classes
-    _generator_classes = {}
     required_attributes = []
 
     def __init__(self, *args, **kwargs):
@@ -225,7 +242,7 @@ class _ModelFixtureUpper(BaseFixtureUpper):
             elif n1 < n2: return -1
             return 0
 
-        out.sort(cmp=compare)
+        out.sort(key=cmp_to_key(compare))
 
         return json.dumps(out, indent=4, default=to_json, sort_keys=True)
 
@@ -375,7 +392,13 @@ class _ModelFixtureUpper(BaseFixtureUpper):
             return self._generate(data=data, **kwargs)
 
 
-def UpperRegister():
-    return type('ModelFixtureUpper', (_ModelFixtureUpper,), {
-        '_generator_classes': {},
-    })
+def UpperRegister(upper_type):
+    if upper_type == 'Base':
+        return type('BaseFixtureUpper', (BaseFixtureUpper,), {
+            '_generator_classes': {},
+        })
+    elif upper_type == 'Model':
+        return type('ModelFixtureUpper', (_ModelFixtureUpper,), {
+            '_generator_classes': {},
+        })
+    raise RuntimeError

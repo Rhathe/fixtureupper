@@ -9,7 +9,7 @@ from tests.unit.models import Article, Author
 
 class BaseTestCase(TestCase):
     def setUp(self):
-        self.ModelFixtureUpper = UpperRegister()
+        self.ModelFixtureUpper = UpperRegister('Model')
 
         class AuthorFixtureUpper(self.ModelFixtureUpper):
             model = Author
