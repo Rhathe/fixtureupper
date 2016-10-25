@@ -284,12 +284,9 @@ class _ModelFixtureUpper(BaseFixtureUpper):
             for key, val in iteritems(d):
                 setattr(fixtures[i], key, val)
 
-    def _generate(self, **kwargs):
-        data = kwargs.get('data')
-        relations = kwargs.get('relations')
-
+    def _generate(self, data=None, **kwargs):
         data = data if isinstance(data, dict) else {}
-        relations = relations if isinstance(relations, dict) else {}
+        relations = {}
 
         # Get model values through mix of default values and passed in values
         model_values = dict(self.defaults, **data)
@@ -329,32 +326,14 @@ class _ModelFixtureUpper(BaseFixtureUpper):
         self.fixtures.append(fixture)
         return fixture
 
-    def generate(self, **kwargs):
-        data = kwargs.get('data')
-        relations = kwargs.get('relations')
-
-        def _get_only_relation(i):
-            return relations
-
-        def _get_indexed_relation(i):
-            return relations[i]
-
-        _get_relations = _get_only_relation
-
+    def generate(self, data=None, **kwargs):
         if isinstance(data, list):
-            if isinstance(relations, list):
-                _get_relations = _get_indexed_relation
-                if len(data) != len(relations):
-                    raise Exception('data and relations must be same length for %s' % str(self))
-
             fixtures = []
-            for i, d in enumerate(data):
-                kwargs['data'] = d
-                kwargs['relations'] = _get_relations(i)
-                fixtures.append(self._generate(**kwargs))
+            for d in data:
+                fixtures.append(self._generate(data=d, **kwargs))
             return fixtures
         else:
-            return self._generate(**kwargs)
+            return self._generate(data=data, **kwargs)
 
 
 def UpperRegister():
