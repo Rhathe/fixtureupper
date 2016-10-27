@@ -45,7 +45,7 @@ class ModelFixtureUpper(BaseFixtureUpper):
             setattr(self, self.attr_key, self.start_id)
 
     @classmethod
-    def get_generator_class_key(cls):
+    def get_upper_class_key(cls):
         try:
             return cls.model.__name__
         except:
@@ -86,7 +86,7 @@ class ModelFixtureUpper(BaseFixtureUpper):
         def get_from_json(model):
             return lambda obj: model(**obj['__value__'])
 
-        for name, upper_class in iteritems(cls._generator_classes):
+        for name, upper_class in iteritems(cls._upper_classes):
             if getattr(upper_class, 'model', None):
                 pos[upper_class.model] = {
                     'to_json': lambda obj: cls.get_fixture_to_json(obj),
