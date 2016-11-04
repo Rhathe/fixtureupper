@@ -185,8 +185,15 @@ class ModelFixtureUpper(BaseFixtureUpper):
             setattr(self, self.attr_key, v + 1)
         return v
 
-    def set_relations(self, fixture, relations):
+    def set_relation(fixture, related_fixtures, relation_prop):
         raise NotImplementedError
+
+    def set_relations(self, fixture, relations):
+        for k, related_fixtures in iteritems(relations):
+            # if relation is a generator function, generate first
+            if callable(related_fixtures):
+                related_fixtures = related_fixtures(self, fixture)
+            self.set_relation(fixture, related_fixtures, k)
 
     @classmethod
     def get_relationships(cls):

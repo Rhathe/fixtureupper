@@ -63,31 +63,30 @@ class SqlAlchemyModelFixtureUpper(ModelFixtureUpper):
     def _get_relationship(cls, fixture, relation_prop):
         return cls.get_relationships(fixture=fixture).get(relation_prop)
 
-    def set_relations(self, fixture, relations):
-        # set model's (i.e. Article)
+    def _set_relation_ids(self, fixture, related_fixture, relation_prop):
+        # set fixture's (i.e. Article)
         # foreign_key (i.e. main_author_id)
-        # to primary_key of related_model (i.e. Author's author_id)
-        def _set_relation_ids(model, related_model, relation_prop):
-            relationship = self._get_relationship(model, relation_prop)
-            if not relationship:
-                return
+        # to primary_key of related_fixture (i.e. Author's author_id)
+        relationship = self._get_relationship(fixture, relation_prop)
+        if not relationship:
+            return
 
-            local_columns = list(relationship.local_columns)[0]
+        local_columns = list(relationship.local_columns)[0]
 
-            # Only set keys if it's a foreign key of the model
-            if local_columns.foreign_keys:
-                foreign_key = local_columns.key
-                related_model_pk = list(local_columns.foreign_keys)[0].column.key
-                setattr(model, foreign_key, getattr(related_model, related_model_pk))
+        # Only set keys if it's a foreign key of the model
+        if local_columns.foreign_keys:
+            foreign_key = local_columns.key
+            related_model_pk = list(local_columns.foreign_keys)[0].column.key
+            setattr(fixture, foreign_key, getattr(related_fixture, related_model_pk))
 
-        for k, relation in iteritems(relations):
-            # Set fixture relation, backref's automatically made by sqlAlchemy
-            setattr(fixture, k, relation)
-            _property = getattr(type(fixture), k).property
-            back_relation = _property.backref or _property.back_populates
+    def set_relation(self, fixture, related_fixtures, relation_prop):
+        # Set fixture relation, backref's automatically made by sqlAlchemy
+        setattr(fixture, relation_prop, related_fixtures)
+        _property = getattr(type(fixture), relation_prop).property
+        back_relation = _property.backref or _property.back_populates
 
-            if not isinstance(relation, list):
-                relation = [relation]
-            for r in relation:
-                _set_relation_ids(fixture, r, k)
-                _set_relation_ids(r, fixture, back_relation)
+        if not isinstance(related_fixtures, list):
+            related_fixtures = [related_fixtures]
+        for r in related_fixtures:
+            self._set_relation_ids(fixture, r, relation_prop)
+            self._set_relation_ids(r, fixture, back_relation)

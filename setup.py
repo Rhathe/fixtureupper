@@ -36,7 +36,7 @@ class ToxWithRecreate(Tox):
 
 setup(
     name='fixtureupper',
-    version='0.1.2',
+    version='0.1.3',
     packages=['fixtureupper'],
     url='https://github.com/Rhathe/fixtureupper',
     license='MIT',

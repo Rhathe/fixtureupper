@@ -77,25 +77,31 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
         self.assertIsNone(fixtures[2].name)
         self.assertEqual(fixtures[2].id, 152)
 
+    def _assert_relations_and_ids(self, au_fixture, ar_fixture):
+        self.assertEqual(au_fixture.articles[0], ar_fixture)
+        self.assertEqual(ar_fixture.author, au_fixture)
+        self.assertEqual(ar_fixture.main_author_id, au_fixture.id)
+
     def test_sets_relation_one_way(self):
         au_fixture = self.au_fu.generate(data={})
         ar_fixture = self.ar_fu.generate(data={
             'author': au_fixture,
         })
-
-        self.assertEqual(au_fixture.articles[0], ar_fixture)
-        self.assertEqual(ar_fixture.author, au_fixture)
-        self.assertEqual(ar_fixture.main_author_id, au_fixture.id)
+        self._assert_relations_and_ids(au_fixture, ar_fixture)
 
     def test_sets_relation_other_way(self):
         ar_fixture = self.ar_fu.generate(data={})
         au_fixture = self.au_fu.generate(data={
             'articles': [ar_fixture],
         })
+        self._assert_relations_and_ids(au_fixture, ar_fixture)
 
-        self.assertEqual(au_fixture.articles[0], ar_fixture)
-        self.assertEqual(ar_fixture.author, au_fixture)
-        self.assertEqual(ar_fixture.main_author_id, au_fixture.id)
+    def test_sets_relation_with_generator_function(self):
+        au_fixture = self.au_fu.generate(data={})
+        ar_fixture = self.ar_fu.generate(data={
+            'author': lambda self, fixture: au_fixture,
+        })
+        self._assert_relations_and_ids(au_fixture, ar_fixture)
 
 
 class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
