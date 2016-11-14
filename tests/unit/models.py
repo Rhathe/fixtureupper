@@ -21,3 +21,15 @@ class Author(_Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
     alias = Column(String(255))
+
+
+class CoWrite(_Base):
+    __tablename__ = 'co_write'
+
+    id = Column(Integer, primary_key=True)
+
+    article_id = Column(Integer, ForeignKey('article.id'))
+    article = relation('Article', backref='co_writes')
+
+    author_id = Column(Integer, ForeignKey('author.id'))
+    author = relation('Author', backref='co_writes')

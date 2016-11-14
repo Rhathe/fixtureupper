@@ -189,11 +189,18 @@ class ModelFixtureUpper(BaseFixtureUpper):
         raise NotImplementedError
 
     def set_relations(self, fixture, relations):
+        generator_relations = {}
+
         for k, related_fixtures in iteritems(relations):
-            # if relation is a generator function, generate first
+            # if relation is a generator function, skip to generate later
             if callable(related_fixtures):
-                related_fixtures = related_fixtures(self, fixture)
-            self.set_relation(fixture, related_fixtures, k)
+                generator_relations[k] = related_fixtures
+            else:
+               self.set_relation(fixture, related_fixtures, k)
+
+        for k, related_fixtures in iteritems(generator_relations):
+            # generate relations and pass in as relation
+            self.set_relation(fixture, related_fixtures(self, fixture), k)
 
     @classmethod
     def get_relationships(cls):

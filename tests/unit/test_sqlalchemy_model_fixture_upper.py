@@ -1,11 +1,13 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
+from future.utils import iteritems
 import json
 
+from mock import patch
 from unittest import TestCase
 
 from fixtureupper.register import UpperRegister
-from tests.unit.models import Article, Author
+from tests.unit.models import Article, Author, CoWrite
 
 class BaseTestCase(TestCase):
     def setUp(self):
@@ -19,12 +21,18 @@ class BaseTestCase(TestCase):
             model = Article
             defaults = {}
 
+        class CoWriteFixtureUpper(self.SqlAlchemyModelFixtureUpper):
+            model = CoWrite
+            defaults = {}
+
         self.m_fu = self.SqlAlchemyModelFixtureUpper(start_id=150)
         self.AuthorFixtureUpperClass = AuthorFixtureUpper
         self.ArticleFixtureUpperClass = ArticleFixtureUpper
+        self.CoWriteFixtureUpperClass = CoWriteFixtureUpper
 
         self.au_fu = self.m_fu.get_upper('Author')
         self.ar_fu = self.m_fu.get_upper('Article', start_id=250)
+        self.co_fu = self.m_fu.get_upper('CoWrite', start_id=370)
 
 
 class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
@@ -100,6 +108,23 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
         au_fixture = self.au_fu.generate(data={})
         ar_fixture = self.ar_fu.generate(data={
             'author': lambda self, fixture: au_fixture,
+        })
+        self._assert_relations_and_ids(au_fixture, ar_fixture)
+
+    @patch('fixtureupper.model.iteritems')
+    def test_sets_relation_with_generator_function_based_on_static_relation(self, mock_iteritems):
+        def side_effect(l):
+            return sorted(iteritems(l))
+
+        mock_iteritems.side_effect = side_effect
+
+        au_fixture = self.au_fu.generate(data={
+            'co_writes': self.co_fu.generate(data=[{}])
+        })
+
+        ar_fixture = self.ar_fu.generate(data={
+            'author': lambda self, fixture: fixture.co_writes[0].author,
+            'co_writes': au_fixture.co_writes,
         })
         self._assert_relations_and_ids(au_fixture, ar_fixture)
 
