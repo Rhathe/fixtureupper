@@ -17,14 +17,15 @@ from fixtureupper.model import ModelFixtureUpper
 
 class SqlAlchemyModelFixtureUpper(ModelFixtureUpper):
     @classmethod
-    def get_fixture_to_json(cls, fixture):
-        def _removeable_relation(model, relation_prop):
-            return bool(cls._get_relationship(model, relation_prop))
+    def is_removeable_relation(cls, model, relation_prop):
+        return bool(cls._get_relationship(model, relation_prop))
 
+    @classmethod
+    def get_fixture_to_json(cls, fixture):
         fields = vars(fixture)
 
         # Remove relation before writing to prevent circular json
-        removed_relations = {k: v for k, v in iteritems(fields) if _removeable_relation(fixture, k)}
+        removed_relations = {k: v for k, v in iteritems(fields) if cls.is_removeable_relation(fixture, k)}
         for k, v in iteritems(removed_relations):
             # delattr removes completely if list, must copy
             removed_relations[k] = v[:] if isinstance(v, list) else v
@@ -64,6 +65,9 @@ class SqlAlchemyModelFixtureUpper(ModelFixtureUpper):
         return cls.get_relationships(fixture=fixture).get(relation_prop)
 
     def _set_relation_ids(self, fixture, related_fixture, relation_prop):
+        if not related_fixture:
+            return
+
         # set fixture's (i.e. Article)
         # foreign_key (i.e. main_author_id)
         # to primary_key of related_fixture (i.e. Author's author_id)

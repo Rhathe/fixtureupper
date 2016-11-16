@@ -111,6 +111,27 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
         })
         self._assert_relations_and_ids(au_fixture, ar_fixture)
 
+    def test_does_not_set_relation_if_None(self):
+        au_fixture = self.au_fu.generate(data={})
+        ar_fixture = self.ar_fu.generate(data={
+            'author': None,
+        })
+
+        self.assertEqual(len(au_fixture.articles), 0)
+        self.assertIsNone(ar_fixture.author)
+        self.assertIsNone(ar_fixture.main_author_id)
+
+    def test_does_not_override_relation_if_None(self):
+        au_fixture = self.au_fu.generate(data={})
+        ar_fixture = self.ar_fu.generate(data={
+            'author': None,
+            'main_author_id': 1,
+        })
+
+        self.assertEqual(len(au_fixture.articles), 0)
+        self.assertIsNone(ar_fixture.author)
+        self.assertEqual(ar_fixture.main_author_id, 1)
+
     @patch('fixtureupper.model.iteritems')
     def test_sets_relation_with_generator_function_based_on_static_relation(self, mock_iteritems):
         def side_effect(l):
