@@ -149,6 +149,42 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
         })
         self._assert_relations_and_ids(au_fixture, ar_fixture)
 
+    def test_sets_relation_with_generator_function_in_one_order(self):
+        au_fixture = self.au_fu.generate(data={
+            'co_writes': self.co_fu.generate(data=[{}])
+        })
+
+        self.ar_fu.generated_field_order = ['author', 'co_writes']
+        ar_fixture = self.ar_fu.generate(data={
+            'author': lambda self, fixture: au_fixture,
+            'co_writes': lambda self, fixture: fixture.author.co_writes,
+        })
+        self._assert_relations_and_ids(au_fixture, ar_fixture)
+
+        with self.assertRaises(IndexError):
+            ar_fixture = self.ar_fu.generate(data={
+                'author': lambda self, fixture: fixture.co_writes[0].author,
+                'co_writes': lambda self, fixture: au_fixture.co_writes,
+            })
+
+    def test_sets_relation_with_generator_function_in_other_order(self):
+        au_fixture = self.au_fu.generate(data={
+            'co_writes': self.co_fu.generate(data=[{}])
+        })
+
+        self.ar_fu.generated_field_order = ['co_writes', 'author']
+        ar_fixture = self.ar_fu.generate(data={
+            'author': lambda self, fixture: fixture.co_writes[0].author,
+            'co_writes': lambda self, fixture: au_fixture.co_writes,
+        })
+        self._assert_relations_and_ids(au_fixture, ar_fixture)
+
+        with self.assertRaises(AttributeError):
+            ar_fixture = self.ar_fu.generate(data={
+                'author': lambda self, fixture: au_fixture,
+                'co_writes': lambda self, fixture: fixture.author.co_writes,
+            })
+
 
 class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
     def setUp(self):

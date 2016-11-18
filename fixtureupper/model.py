@@ -34,6 +34,7 @@ def cmp_to_key(mycmp):
 
 class ModelFixtureUpper(BaseFixtureUpper):
     required_attributes = []
+    generated_field_order = []
 
     def __init__(self, *args, **kwargs):
         super(ModelFixtureUpper, self).__init__(*args, **kwargs)
@@ -198,13 +199,22 @@ class ModelFixtureUpper(BaseFixtureUpper):
             else:
                self.set_relation(fixture, related_fixtures, k)
 
-        for k, related_fixtures in iteritems(generator_relations):
+        for k, related_fixtures in self.sorted_by_generated_order(generator_relations):
             # generate relations and pass in as relation
             self.set_relation(fixture, related_fixtures(self, fixture), k)
 
     @classmethod
     def get_relationships(cls):
         raise NotImplementedError
+
+    def sorted_by_generated_order(self, data):
+        def _sort(_tuple):
+            try:
+                return self.generated_field_order.index(_tuple[0])
+            except:
+                return len(self.generated_field_order)
+
+        return sorted(iteritems(data), key=_sort)
 
     def update_fixtures_with_data(self, data, fixtures=None):
         fixtures = fixtures or self.fixtures
@@ -243,7 +253,7 @@ class ModelFixtureUpper(BaseFixtureUpper):
         self.set_relations(fixture, relations)
 
         # Call generator functions after initial values/relations have been set
-        for key, fn in iteritems(generator_functions):
+        for key, fn in self.sorted_by_generated_order(generator_functions):
             setattr(fixture, key, fn(self, fixture))
 
         # Check to make sure required attibutes have been set
