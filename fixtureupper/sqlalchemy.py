@@ -17,11 +17,15 @@ from fixtureupper.model import ModelFixtureUpper
 
 class SqlAlchemyModelFixtureUpper(ModelFixtureUpper):
     @classmethod
+    def get_table_name_from_fixture(cls, f):
+        return type(f).__tablename__
+
+    @classmethod
     def is_removeable_relation(cls, model, relation_prop):
         return bool(cls._get_relationship(model, relation_prop))
 
     @classmethod
-    def get_fixture_to_json(cls, fixture):
+    def get_fixture_to_dict(cls, fixture):
         fields = vars(fixture)
 
         # Remove relation before writing to prevent circular json
@@ -43,7 +47,7 @@ class SqlAlchemyModelFixtureUpper(ModelFixtureUpper):
         for k, v in iteritems(removed_relations):
             setattr(fixture, k, v)
 
-        return cls.make_obj_json(fixture, fields)
+        return fields
 
     def get_model_attr_key(self, model=None):
         try:

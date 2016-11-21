@@ -2,6 +2,7 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 from future.utils import iteritems
 import json
+import re
 
 from mock import patch
 from unittest import TestCase
@@ -212,7 +213,6 @@ class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
             },
         ]
 
-    def test_get_current_fixtures_json(self):
         ar_fixtures = self.ar_fu.fixup(data=[{}, {}, {}])
         au_fixtures = self.au_fu.fixup(data=[
             {
@@ -223,6 +223,10 @@ class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
             }
         ])
 
+    def _standardize_white_space(self, s):
+        return re.sub(re.compile('^[ ]+', re.MULTILINE), '', s.strip())
+
+    def test_get_current_fixtures_json(self):
         json_dict = json.loads(self.m_fu.get_current_fixtures_json())
         self.assertEqual(json_dict, self.json_dict)
 
@@ -244,16 +248,39 @@ class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
 
     def test_get_fixtures_json_in_different_order(self):
         self.SqlAlchemyModelFixtureUpper.all_fixtures_order = ['Author', 'Article']
-        ar_fixtures = self.ar_fu.fixup(data=[{}, {}, {}])
-        au_fixtures = self.au_fu.fixup(data=[
-            {
-                'articles': ar_fixtures[:2],
-            },
-            {
-                'articles': ar_fixtures[-1:],
-            }
-        ])
-
         json_dict = json.loads(self.m_fu.get_current_fixtures_json())
         expected_json_dict = self.json_dict[3:] + self.json_dict[:3]
         self.assertEqual(json_dict, expected_json_dict)
+
+    def test_writes_as_sql(self):
+        query = self.m_fu.stats_fixtures_to_sql(self.m_fu.get_all_fixtures())
+        self.assertEqual(
+            self._standardize_white_space(query),
+            self._standardize_white_space("""
+                INSERT INTO article (id, main_author_id) VALUES
+                (250, 150),
+                (251, 150),
+                (252, 151);
+
+                INSERT INTO author (id) VALUES
+                (150),
+                (151);
+            """)
+        )
+
+    def test_writes_as_sql_in_different_order(self):
+        self.SqlAlchemyModelFixtureUpper.all_fixtures_order = ['Author', 'Article']
+        query = self.m_fu.stats_fixtures_to_sql(self.m_fu.get_all_fixtures())
+        self.assertEqual(
+            self._standardize_white_space(query),
+            self._standardize_white_space("""
+                INSERT INTO author (id) VALUES
+                (150),
+                (151);
+
+                INSERT INTO article (id, main_author_id) VALUES
+                (250, 150),
+                (251, 150),
+                (252, 151);
+            """)
+        )

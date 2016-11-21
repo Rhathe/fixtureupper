@@ -1,6 +1,7 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
+from collections import defaultdict
 from copy import deepcopy
 import datetime
 from decimal import Decimal
@@ -10,26 +11,6 @@ import json
 import os
 
 from fixtureupper.base import BaseFixtureUpper
-
-
-def cmp_to_key(mycmp):
-    class K(object):
-        def __init__(self, obj, *args):
-            self.obj = obj
-        def __lt__(self, other):
-            return mycmp(self.obj, other.obj) < 0
-        def __gt__(self, other):
-            return mycmp(self.obj, other.obj) > 0
-        def __eq__(self, other):
-            return mycmp(self.obj, other.obj) == 0
-        def __le__(self, other):
-            return mycmp(self.obj, other.obj) <= 0
-        def __ge__(self, other):
-            return mycmp(self.obj, other.obj) >= 0
-        def __ne__(self, other):
-            return mycmp(self.obj, other.obj) != 0
-
-    return K
 
 
 class ModelFixtureUpper(BaseFixtureUpper):
@@ -97,16 +78,20 @@ class ModelFixtureUpper(BaseFixtureUpper):
         return pos
 
     @classmethod
-    def get_fixture_to_json(cls, fixture):
+    def get_fixture_to_dict(cls, fixture):
         raise NotImplementedError
+
+    @classmethod
+    def get_fixture_to_json(cls, fixture):
+        fields = cls.get_fixture_to_dict(fixture)
+        return cls.make_obj_json(fixture, fields)
 
     def get_current_fixtures_json(self):
         return self.get_fixtures_json(self.get_all_fixtures())
 
     @classmethod
-    def sorted_fixtures_key(cls, f):
+    def sorted_models_key(cls, model_name):
         # FIXME: sort working depends on number of fixture models being less than 10000
-        model_name = type(f).__name__
         try:
             order_num = cls.all_fixtures_order.index(model_name)
         except:
@@ -114,14 +99,15 @@ class ModelFixtureUpper(BaseFixtureUpper):
         return '%04d_%s' % (order_num, model_name)
 
     @classmethod
-    def get_fixtures_json(cls, fixtures):
-        if not fixtures:
-            raise RuntimeError
+    def sorted_fixtures_key(cls, f):
+        return cls.sorted_models_key(type(f).__name__)
 
+    # Transform python object into json compatible representation
+    @classmethod
+    def get_default_to_json(cls):
         python_objects = cls.get_python_objects_for_json()
 
-        # Transform python object into json compatible representation
-        def to_json(obj):
+        def _to_json(obj):
             # Check if type is directly in python_objects
             transforms = python_objects.get(type(obj))
             if transforms:
@@ -133,18 +119,89 @@ class ModelFixtureUpper(BaseFixtureUpper):
                     return transforms['to_json'](obj)
             return obj
 
-        out = sorted(fixtures, key=cls.sorted_fixtures_key)
-
-        return json.dumps(out, indent=4, default=to_json, sort_keys=True)
+        return _to_json
 
     @classmethod
-    def print_fixtures(cls, savedir, fname, fixtures):
+    def get_fixtures_json(cls, fixtures):
+        out = sorted(fixtures or [], key=cls.sorted_fixtures_key)
+        return json.dumps(out, indent=4, default=cls.get_default_to_json(), sort_keys=True)
+
+    @classmethod
+    def print_fixtures(cls, *args, **kwargs):
+        return cls.print_json_fixtures(*args, **kwargs)
+
+    @classmethod
+    def _print_fixtures(cls, savedir, fname, data):
         """Function to print model fixtures into generated file"""
         if not os.path.exists(savedir):
             os.makedirs(savedir)
 
-        with open('%s%s' % (savedir, fname), 'w') as fout:
-            fout.write(cls.get_fixtures_json(fixtures))
+        with open(os.path.join(savedir, fname), 'w') as fout:
+            fout.write(data)
+
+    @classmethod
+    def print_json_fixtures(cls, savedir, fname, fixtures):
+        return cls._print_fixtures(savedir, fname, cls.get_fixtures_json(fixtures))
+
+    @classmethod
+    def print_sql_fixtures(cls, savedir, fname, fixtures):
+        return cls._print_fixtures(savedir, fname, cls.stats_fixtures_to_sql(fixtures))
+
+    @classmethod
+    def sort_fixtures_by_model(cls, fixtures):
+        def _get_default_dict():
+            return {
+                'keys': set(),
+                'values': [],
+            }
+
+        _fixtures = defaultdict(_get_default_dict)
+
+        for f in fixtures:
+            table = _fixtures[type(f).__name__]
+            table['keys'].update(cls.get_fixture_to_dict(f).keys())
+            table['values'].append(f)
+
+        return _fixtures
+
+    @classmethod
+    def to_sql(cls, val):
+        if isinstance(val, datetime.datetime):
+            return 'TIMESTAMP \'%s\'' % str(val)
+        elif isinstance(val, str):
+            return "'%s'" % val
+        elif val is None:
+            return 'NULL'
+        return str(val)
+
+    @classmethod
+    def get_table_name_from_fixture(cls, f):
+        raise NotImplementedError
+
+    @classmethod
+    def stats_fixtures_to_sql(cls, fixtures):
+        fixtures = cls.sort_fixtures_by_model(fixtures)
+        statement_groups = []
+
+        def _sort_key(_tuple):
+            return cls.sorted_models_key(_tuple[0])
+
+        for model_name, table_dict in sorted(iteritems(fixtures), key=_sort_key):
+            fixture_list = table_dict['values']
+            if not fixture_list:
+                continue
+
+            table_name = cls.get_table_name_from_fixture(fixture_list[0])
+            data_keys = sorted(list(table_dict['keys']))
+            header = 'INSERT INTO %s (%s) VALUES' % (table_name, ', '.join(data_keys))
+
+            statements = [
+                '(%s)' % ', '.join(cls.to_sql(getattr(f, key)) for key in data_keys)
+                for f in fixture_list
+            ]
+            statement_groups.append('%s\n%s;\n' % (header, ',\n'.join(statements)))
+
+        return '\n'.join(statement_groups)
 
     @classmethod
     def get_fixtures_from_json(cls, json_str):
