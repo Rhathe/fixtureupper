@@ -23,7 +23,7 @@ class TestUpperRegister(TestCase):
         self.AuthorFixtureUpperClass = AuthorFixtureUpper
         self.ArticleFixtureUpperClass = ArticleFixtureUpper
 
-    def test_registers_have_different_generator_classes(self):
+    def test_registers_have_different_upper_classes(self):
         self.assertEqual(type(self.m_fu_1.get_upper('Author')), self.AuthorFixtureUpperClass)
         with self.assertRaises(KeyError):
             self.assertEqual(type(self.m_fu_1.get_upper('Article')), self.ArticleFixtureUpperClass)

@@ -222,7 +222,7 @@ class ModelFixtureUpper(BaseFixtureUpper):
             for key, val in iteritems(d):
                 setattr(fixtures[i], key, val)
 
-    def _generate(self, data=None, **kwargs):
+    def single_fixup(self, data=None, **kwargs):
         data = data if isinstance(data, dict) else {}
         relations = {}
 
@@ -264,11 +264,11 @@ class ModelFixtureUpper(BaseFixtureUpper):
         self.fixtures.append(fixture)
         return fixture
 
-    def generate(self, data=None, **kwargs):
+    def fixup(self, data=None, **kwargs):
         if isinstance(data, list):
             fixtures = []
             for d in data:
-                fixtures.append(self._generate(data=d, **kwargs))
+                fixtures.append(self.single_fixup(data=d, **kwargs))
             return fixtures
         else:
-            return self._generate(data=data, **kwargs)
+            return self.single_fixup(data=data, **kwargs)

@@ -97,5 +97,5 @@ class BaseFixtureUpper(with_metaclass(UpperWatcher, object)):
     def reset_defaults(self):
         self.defaults = self.__class__.defaults
 
-    def generate(self, **kwargs):
+    def fixup(self, **kwargs):
         raise NotImplementedError
