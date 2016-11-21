@@ -201,7 +201,12 @@ class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
             },
             {
                 '__class__': 'Article',
-                '__value__': {'id': 252, 'main_author_id': 151}
+                '__value__': {
+                    'id': 252,
+                    'main_author_id': 151,
+                    'is_visible': True,
+                    'title': u'some title',
+                }
             },
             {
                 '__class__': 'Author',
@@ -213,7 +218,11 @@ class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
             },
         ]
 
-        ar_fixtures = self.ar_fu.fixup(data=[{}, {}, {}])
+        ar_fixtures = self.ar_fu.fixup(data=[{}, {}, {
+            'title': 'some title',
+            'is_visible': True,
+        }])
+
         au_fixtures = self.au_fu.fixup(data=[
             {
                 'articles': ar_fixtures[:2],
@@ -257,10 +266,10 @@ class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
         self.assertEqual(
             self._standardize_white_space(query),
             self._standardize_white_space("""
-                INSERT INTO article (id, main_author_id) VALUES
-                (250, 150),
-                (251, 150),
-                (252, 151);
+                INSERT INTO article (id, is_visible, main_author_id, title) VALUES
+                (250, NULL, 150, NULL),
+                (251, NULL, 150, NULL),
+                (252, true, 151, 'some title');
 
                 INSERT INTO author (id) VALUES
                 (150),
@@ -278,9 +287,9 @@ class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
                 (150),
                 (151);
 
-                INSERT INTO article (id, main_author_id) VALUES
-                (250, 150),
-                (251, 150),
-                (252, 151);
+                INSERT INTO article (id, is_visible, main_author_id, title) VALUES
+                (250, NULL, 150, NULL),
+                (251, NULL, 150, NULL),
+                (252, true, 151, 'some title');
             """)
         )

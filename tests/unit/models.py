@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relation, sessionmaker
 
@@ -13,6 +13,8 @@ class Article(_Base):
 
     main_author_id = Column(Integer, ForeignKey('author.id'))
     author = relation('Author', backref='articles')
+
+    is_visible = Column(Boolean)
 
 
 class Author(_Base):

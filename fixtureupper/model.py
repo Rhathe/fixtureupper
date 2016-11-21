@@ -10,6 +10,8 @@ import inspect
 import json
 import os
 
+from six import string_types
+
 from fixtureupper.base import BaseFixtureUpper
 
 
@@ -168,11 +170,11 @@ class ModelFixtureUpper(BaseFixtureUpper):
     def to_sql(cls, val):
         if isinstance(val, datetime.datetime):
             return 'TIMESTAMP \'%s\'' % str(val)
-        elif isinstance(val, str):
+        elif isinstance(val, string_types):
             return "'%s'" % val
         elif val is None:
             return 'NULL'
-        return str(val)
+        return json.dumps(val)
 
     @classmethod
     def get_table_name_from_fixture(cls, f):
