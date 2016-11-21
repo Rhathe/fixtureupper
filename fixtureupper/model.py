@@ -104,6 +104,16 @@ class ModelFixtureUpper(BaseFixtureUpper):
         return self.get_fixtures_json(self.get_all_fixtures())
 
     @classmethod
+    def sorted_fixtures_key(cls, f):
+        # FIXME: sort working depends on number of fixture models being less than 10000
+        model_name = type(f).__name__
+        try:
+            order_num = cls.all_fixtures_order.index(model_name)
+        except:
+            order_num = len(cls.all_fixtures_order)
+        return '%04d_%s' % (order_num, model_name)
+
+    @classmethod
     def get_fixtures_json(cls, fixtures):
         if not fixtures:
             raise RuntimeError
@@ -123,18 +133,7 @@ class ModelFixtureUpper(BaseFixtureUpper):
                     return transforms['to_json'](obj)
             return obj
 
-        # Sort output array by model name first
-        out = [f for f in fixtures]
-
-        def compare(f1, f2):
-            n1 = type(f1).__name__
-            n2 = type(f2).__name__
-
-            if n1 > n2: return 1
-            elif n1 < n2: return -1
-            return 0
-
-        out.sort(key=cmp_to_key(compare))
+        out = sorted(fixtures, key=cls.sorted_fixtures_key)
 
         return json.dumps(out, indent=4, default=to_json, sort_keys=True)
 

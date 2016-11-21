@@ -23,3 +23,17 @@ class TestModelFixtureUpper(TestCase):
             'z': 7,
         })]
         self.assertEqual(result[:5], [1, 7, 3, 2, 4])
+
+    def test_sorted_(self):
+        self.ModelFixtureUpper.all_fixtures_order = ['a', 'b', 'TestModelFixture', 'c']
+
+        class TestModelFixture(object):
+            pass
+
+        class TestNotInOrderModelFixture(object):
+            pass
+
+        a = TestModelFixture()
+        b = TestNotInOrderModelFixture()
+        self.assertEqual(self.ModelFixtureUpper.sorted_fixtures_key(a), '0002_TestModelFixture')
+        self.assertEqual(self.ModelFixtureUpper.sorted_fixtures_key(b), '0004_TestNotInOrderModelFixture')

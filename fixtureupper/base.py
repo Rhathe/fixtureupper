@@ -27,6 +27,7 @@ class UpperWatcher(type):
 class BaseFixtureUpper(with_metaclass(UpperWatcher, object)):
     _upper_classes = {}
     upper_aliases = {}
+    all_fixtures_order = []
 
     def __init__(self, start_id=1, seed=None, upper_instances=None, **kwargs):
         self.start_id = start_id
@@ -57,13 +58,20 @@ class BaseFixtureUpper(with_metaclass(UpperWatcher, object)):
             raise Exception('Fixture Upper with name %s exists, use another name' % key)
         return key
 
+    @classmethod
+    def sorted_fixtures_key(cls, f):
+        return f
+
     def get_all_fixtures(self):
-        list_of_lists = [
+        list_of_lists = iter([
             instance.fixtures
             for key, instance
             in iteritems(self.upper_instances)
-        ]
-        return [fixture for fixture_list in list_of_lists for fixture in fixture_list]
+        ])
+        return sorted(
+            iter([fixture for fixture_list in list_of_lists for fixture in fixture_list]),
+            key=self.sorted_fixtures_key
+        )
 
     def seed_random(self, seed=None):
         seed = seed or self.seed

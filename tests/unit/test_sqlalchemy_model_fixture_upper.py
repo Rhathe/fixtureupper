@@ -241,3 +241,19 @@ class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
 
         self.assertEqual(fixtures[3].id, 150)
         self.assertEqual(fixtures[4].id, 151)
+
+    def test_get_fixtures_json_in_different_order(self):
+        self.SqlAlchemyModelFixtureUpper.all_fixtures_order = ['Author', 'Article']
+        ar_fixtures = self.ar_fu.fixup(data=[{}, {}, {}])
+        au_fixtures = self.au_fu.fixup(data=[
+            {
+                'articles': ar_fixtures[:2],
+            },
+            {
+                'articles': ar_fixtures[-1:],
+            }
+        ])
+
+        json_dict = json.loads(self.m_fu.get_current_fixtures_json())
+        expected_json_dict = self.json_dict[3:] + self.json_dict[:3]
+        self.assertEqual(json_dict, expected_json_dict)
