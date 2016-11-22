@@ -8,7 +8,8 @@ from mock import patch
 from unittest import TestCase
 
 from fixtureupper.register import UpperRegister
-from tests.unit.models import Article, Author, CoWrite
+from fixtureupper.defaults import INHERIT
+from tests.unit.models import Article, Author, CoWrite, Draft
 
 class BaseTestCase(TestCase):
     def setUp(self):
@@ -22,6 +23,10 @@ class BaseTestCase(TestCase):
             model = Article
             defaults = {}
 
+        class DraftFixtureUpper(self.SqlAlchemyModelFixtureUpper):
+            model = Draft
+            defaults = {}
+
         class CoWriteFixtureUpper(self.SqlAlchemyModelFixtureUpper):
             model = CoWrite
             defaults = {}
@@ -29,10 +34,12 @@ class BaseTestCase(TestCase):
         self.m_fu = self.SqlAlchemyModelFixtureUpper(start_id=150)
         self.AuthorFixtureUpperClass = AuthorFixtureUpper
         self.ArticleFixtureUpperClass = ArticleFixtureUpper
+        self.DraftFixtureUpperClass = DraftFixtureUpper
         self.CoWriteFixtureUpperClass = CoWriteFixtureUpper
 
         self.au_fu = self.m_fu.get_upper('Author')
         self.ar_fu = self.m_fu.get_upper('Article', start_id=250)
+        self.dr_fu = self.m_fu.get_upper('Draft', start_id=300)
         self.co_fu = self.m_fu.get_upper('CoWrite', start_id=370)
 
 
@@ -41,7 +48,7 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
         self.assertEqual(type(self.m_fu.get_upper('Author')), self.AuthorFixtureUpperClass)
         self.assertEqual(type(self.m_fu.get_upper('Article')), self.ArticleFixtureUpperClass)
 
-    def test_fixups_fixture(self):
+    def test_fixes_up_fixture(self):
         fixture = self.au_fu.fixup(data={})
         self.assertEqual(len(self.au_fu.fixtures), 1)
         self.assertEqual(fixture, self.au_fu.fixtures[0])
@@ -60,15 +67,16 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
         self.assertEqual(fixture.name, 'Default Name')
 
     def test_sets_data_with_default_function(self):
-        self.AuthorFixtureUpperClass.defaults['name'] = lambda self, fixture: 'Author with id %s' % fixture.id
+        self.AuthorFixtureUpperClass.defaults['name'] = \
+            lambda self, fixture, k: u'%s: Author with id %s' % (k, fixture.id)
 
         fixture = self.au_fu.fixup(data={})
-        self.assertEqual(fixture.name, 'Author with id 150')
+        self.assertEqual(fixture.name, 'name: Author with id 150')
 
         fixture = self.au_fu.fixup(data={})
-        self.assertEqual(fixture.name, 'Author with id 151')
+        self.assertEqual(fixture.name, 'name: Author with id 151')
 
-    def test_fixups_multiple_fixtures(self):
+    def test_fixes_up_multiple_fixtures(self):
         fixtures = self.au_fu.fixup(data=[
             {},
             {'name': 'Test Name 2'},
@@ -108,7 +116,7 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
     def test_sets_relation_with_generator_function(self):
         au_fixture = self.au_fu.fixup(data={})
         ar_fixture = self.ar_fu.fixup(data={
-            'author': lambda self, fixture: au_fixture,
+            'author': lambda self, fixture, k: au_fixture,
         })
         self._assert_relations_and_ids(au_fixture, ar_fixture)
 
@@ -133,6 +141,30 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
         self.assertIsNone(ar_fixture.author)
         self.assertEqual(ar_fixture.main_author_id, 1)
 
+    def tests_inherit_value(self):
+        ar_fixture = self.ar_fu.fixup(data={
+            'title': 'some title',
+            'sub_title': 'some sub title',
+        })
+        dr_fixture = self.dr_fu.fixup(data={
+            'article': ar_fixture,
+            'title': INHERIT('article'),
+        })
+
+        self.assertEqual(dr_fixture.title, 'some title')
+
+    def tests_inherit_value_of_other_key(self):
+        ar_fixture = self.ar_fu.fixup(data={
+            'title': 'some title',
+            'sub_title': 'some sub title',
+        })
+        dr_fixture = self.dr_fu.fixup(data={
+            'article': ar_fixture,
+            'title': INHERIT('article', 'sub_title'),
+        })
+
+        self.assertEqual(dr_fixture.title, 'some sub title')
+
     @patch('fixtureupper.model.iteritems')
     def test_sets_relation_with_generator_function_based_on_static_relation(self, mock_iteritems):
         def side_effect(l):
@@ -145,7 +177,7 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
         })
 
         ar_fixture = self.ar_fu.fixup(data={
-            'author': lambda self, fixture: fixture.co_writes[0].author,
+            'author': lambda self, fixture, k: fixture.co_writes[0].author,
             'co_writes': au_fixture.co_writes,
         })
         self._assert_relations_and_ids(au_fixture, ar_fixture)
@@ -157,15 +189,15 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
 
         self.ar_fu.generated_field_order = ['author', 'co_writes']
         ar_fixture = self.ar_fu.fixup(data={
-            'author': lambda self, fixture: au_fixture,
-            'co_writes': lambda self, fixture: fixture.author.co_writes,
+            'author': lambda self, fixture, k: au_fixture,
+            'co_writes': lambda self, fixture, k: fixture.author.co_writes,
         })
         self._assert_relations_and_ids(au_fixture, ar_fixture)
 
         with self.assertRaises(IndexError):
             ar_fixture = self.ar_fu.fixup(data={
-                'author': lambda self, fixture: fixture.co_writes[0].author,
-                'co_writes': lambda self, fixture: au_fixture.co_writes,
+                'author': lambda self, fixture, k: fixture.co_writes[0].author,
+                'co_writes': lambda self, fixture, k: au_fixture.co_writes,
             })
 
     def test_sets_relation_with_generator_function_in_other_order(self):
@@ -175,15 +207,15 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
 
         self.ar_fu.generated_field_order = ['co_writes', 'author']
         ar_fixture = self.ar_fu.fixup(data={
-            'author': lambda self, fixture: fixture.co_writes[0].author,
-            'co_writes': lambda self, fixture: au_fixture.co_writes,
+            'author': lambda self, fixture, k: fixture.co_writes[0].author,
+            'co_writes': lambda self, fixture, k: au_fixture.co_writes,
         })
         self._assert_relations_and_ids(au_fixture, ar_fixture)
 
         with self.assertRaises(AttributeError):
             ar_fixture = self.ar_fu.fixup(data={
-                'author': lambda self, fixture: au_fixture,
-                'co_writes': lambda self, fixture: fixture.author.co_writes,
+                'author': lambda self, fixture, k: au_fixture,
+                'co_writes': lambda self, fixture, k: fixture.author.co_writes,
             })
 
 

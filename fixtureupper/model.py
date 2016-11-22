@@ -246,19 +246,26 @@ class ModelFixtureUpper(BaseFixtureUpper):
     def set_relation(fixture, related_fixtures, relation_prop):
         raise NotImplementedError
 
+    def _is_generator_function(self, obj):
+        return callable(obj)
+
+    def _call_generator_function(self, fn, fixture, key):
+        return fn(self, fixture, key)
+
     def set_relations(self, fixture, relations):
         generator_relations = {}
 
         for k, related_fixtures in iteritems(relations):
             # if relation is a generator function, skip to generate later
-            if callable(related_fixtures):
+            if self._is_generator_function(related_fixtures):
                 generator_relations[k] = related_fixtures
             else:
                self.set_relation(fixture, related_fixtures, k)
 
         for k, related_fixtures in self.sorted_by_generated_order(generator_relations):
             # generate relations and pass in as relation
-            self.set_relation(fixture, related_fixtures(self, fixture), k)
+            generated = self._call_generator_function(related_fixtures, fixture, k)
+            self.set_relation(fixture, generated, k)
 
     @classmethod
     def get_relationships(cls):
@@ -299,7 +306,7 @@ class ModelFixtureUpper(BaseFixtureUpper):
                 relations[key] = value
 
             # Else if model values are generator functions, move them away from model_values
-            elif callable(value):
+            elif self._is_generator_function(value):
                 generator_functions[key] = value
 
         for key in frozenset(generator_functions.keys()).union(frozenset(relations.keys())):
@@ -311,7 +318,8 @@ class ModelFixtureUpper(BaseFixtureUpper):
 
         # Call generator functions after initial values/relations have been set
         for key, fn in self.sorted_by_generated_order(generator_functions):
-            setattr(fixture, key, fn(self, fixture))
+            generated = self._call_generator_function(fn, fixture, key)
+            setattr(fixture, key, generated)
 
         # Check to make sure required attibutes have been set
         for attr in self.required_attributes:
