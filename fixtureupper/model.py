@@ -9,8 +9,7 @@ from future.utils import iteritems
 import inspect
 import json
 import os
-
-from six import string_types
+from past.builtins import basestring
 
 from fixtureupper.base import BaseFixtureUpper
 
@@ -170,7 +169,7 @@ class ModelFixtureUpper(BaseFixtureUpper):
     def to_sql(cls, val):
         if isinstance(val, datetime.datetime):
             return 'TIMESTAMP \'%s\'' % str(val)
-        elif isinstance(val, string_types):
+        elif isinstance(val, basestring):
             return "'%s'" % val
         elif val is None:
             return 'NULL'
