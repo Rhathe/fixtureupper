@@ -17,6 +17,17 @@ class Article(_Base):
     is_visible = Column(Boolean)
 
 
+class Draft(_Base):
+    __tablename__ = 'draft'
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String(255), nullable=False)
+    sub_title = Column(String(255))
+
+    article_id = Column(Integer, ForeignKey('article.id'))
+    article = relation('Article', backref='drafts')
+
+
 class Author(_Base):
     __tablename__ = 'author'
 
