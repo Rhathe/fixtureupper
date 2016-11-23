@@ -8,7 +8,7 @@ from mock import patch
 from unittest import TestCase
 
 from fixtureupper.register import UpperRegister
-from fixtureupper.defaults import INHERIT
+from fixtureupper.defaults import inherit
 from tests.unit.models import Article, Author, CoWrite, Draft
 
 class BaseTestCase(TestCase):
@@ -148,7 +148,7 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
         })
         dr_fixture = self.dr_fu.fixup(data={
             'article': ar_fixture,
-            'title': INHERIT('article'),
+            'title': inherit('article'),
         })
 
         self.assertEqual(dr_fixture.title, 'some title')
@@ -160,14 +160,14 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
         })
         dr_fixture = self.dr_fu.fixup(data={
             'article': ar_fixture,
-            'title': INHERIT('article', 'sub_title'),
+            'title': inherit('article', 'sub_title'),
         })
 
         self.assertEqual(dr_fixture.title, 'some sub title')
 
     def tests_inherits_nothing_with_not_relation(self):
         dr_fixture = self.dr_fu.fixup(data={
-            'title': INHERIT('article', 'sub_title'),
+            'title': inherit('article', 'sub_title'),
         })
 
         self.assertIsNone(dr_fixture.title)
