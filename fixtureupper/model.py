@@ -5,7 +5,7 @@ from collections import defaultdict
 from copy import deepcopy
 import datetime
 from decimal import Decimal
-from future.utils import iteritems
+from future.utils import iteritems, iterkeys, itervalues
 import inspect
 import json
 import os
@@ -252,31 +252,73 @@ class ModelFixtureUpper(BaseFixtureUpper):
     def _call_generator_function(self, fn, fixture, key):
         return fn(self, fixture, key)
 
-    def set_relations(self, fixture, relations):
-        generator_relations = {}
+    def set_fixture_values(self, model_values, fixture=None):
+        # Init model if None passed
+        fixture = fixture or self.model()
 
-        for k, related_fixtures in iteritems(relations):
-            # if relation is a generator function, skip to generate later
-            if self._is_generator_function(related_fixtures):
-                generator_relations[k] = related_fixtures
-            else:
-               self.set_relation(fixture, related_fixtures, k)
+        buckets = defaultdict(dict)
+        relationships = self.get_relationships()
 
-        for k, related_fixtures in self.sorted_by_generated_order(generator_relations):
-            # generate relations and pass in as relation
-            generated = self._call_generator_function(related_fixtures, fixture, k)
-            self.set_relation(fixture, generated, k)
+        # Get function that sets attribute onto fixture
+        def _get_fn(value, attr, is_relation=False, is_generated=False):
+            def _set_attr_fn(fixture):
+                attr_value = value
+                if is_generated:
+                    attr_value = self._call_generator_function(value, fixture, attr)
+                if is_relation:
+                    self.set_relation(fixture, attr_value, attr)
+                else:
+                    setattr(fixture, attr, attr_value)
+
+            return _set_attr_fn
+
+        def _dict_as_key(_dict):
+            return str(sorted(iteritems(_dict)))
+
+        # Group into buckets whether attribute value is a relation and is a generator
+        for attr, value in iteritems(model_values):
+            params = {
+                'is_relation': bool(relationships.get(attr)),
+                'is_generated': self._is_generator_function(value),
+            }
+            buckets[_dict_as_key(params)][attr] = _get_fn(value, attr, **params)
+
+        # Call static values first
+        bucket = buckets[_dict_as_key({'is_relation': False, 'is_generated': False})]
+        for static_values in itervalues(bucket):
+            static_values(fixture)
+
+        # Call static relations next
+        bucket = buckets[_dict_as_key({'is_relation': True, 'is_generated': False})]
+        for static_relations in itervalues(bucket):
+            static_relations(fixture)
+
+        # Call generated functions now, according to sorted order, but otherwise prioritize relations
+        gen_values = buckets[_dict_as_key({'is_relation': False, 'is_generated': True})]
+        gen_relations = buckets[_dict_as_key({'is_relation': True, 'is_generated': True})]
+
+        relation_keys = set(iterkeys(gen_relations))
+        combined = dict(gen_values, **gen_relations)
+
+        for attr, generator in self.sorted_by_generated_order(combined, other_prioritized=relation_keys):
+            generator(fixture)
+
+        return fixture
 
     @classmethod
     def get_relationships(cls):
         raise NotImplementedError
 
-    def sorted_by_generated_order(self, data):
+    def sorted_by_generated_order(self, data, other_prioritized={}):
         def _sort(_tuple):
+            attr = _tuple[0]
+
             try:
-                return self.generated_field_order.index(_tuple[0])
+                # Attributes in self.generated_field order prioritized before everything else
+                return self.generated_field_order.index(attr)
             except:
-                return len(self.generated_field_order)
+                # lower number if a prioritized attribute
+                return len(self.generated_field_order) + int(attr not in other_prioritized)
 
         return sorted(iteritems(data), key=_sort)
 
@@ -288,7 +330,6 @@ class ModelFixtureUpper(BaseFixtureUpper):
 
     def single_fixup(self, data=None, **kwargs):
         data = data if isinstance(data, dict) else {}
-        relations = {}
 
         # Get model values through mix of default values and passed in values
         model_values = dict(self.defaults, **data)
@@ -297,29 +338,7 @@ class ModelFixtureUpper(BaseFixtureUpper):
         if self.attr_key and not model_values.get(self.attr_key):
             model_values[self.attr_key] = self.get_model_id()
 
-        generator_functions = {}
-
-        relationships = self.get_relationships()
-        for key, value in iteritems(model_values):
-            # If model values are relations, move them to relations dict
-            if relationships.get(key):
-                relations[key] = value
-
-            # Else if model values are generator functions, move them away from model_values
-            elif self._is_generator_function(value):
-                generator_functions[key] = value
-
-        for key in frozenset(generator_functions.keys()).union(frozenset(relations.keys())):
-            model_values.pop(key, None)
-
-        # Set fixture's attributes with model_values dict and relation dict
-        fixture = self.model(**model_values)
-        self.set_relations(fixture, relations)
-
-        # Call generator functions after initial values/relations have been set
-        for key, fn in self.sorted_by_generated_order(generator_functions):
-            generated = self._call_generator_function(fn, fixture, key)
-            setattr(fixture, key, generated)
+        fixture = self.set_fixture_values(model_values)
 
         # Check to make sure required attibutes have been set
         for attr in self.required_attributes:

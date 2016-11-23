@@ -225,6 +225,50 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
                 'co_writes': lambda self, fixture, k: fixture.author.co_writes,
             })
 
+    def test_sets_relation_with_generator_function_can_come_after_nonrelated_generator_functions(self):
+        au_fixture = self.au_fu.fixup()
+
+        def raiseExceptionIfNoTitle(self, fixture, k):
+            if not fixture.title:
+                raise Exception()
+            return au_fixture
+
+        self.ar_fu.generated_field_order = ['title', 'author']
+        ar_fixture = self.ar_fu.fixup(data={
+            'title': lambda self, fixture, k: 'some title',
+            'author': raiseExceptionIfNoTitle,
+        })
+        self._assert_relations_and_ids(au_fixture, ar_fixture)
+
+        with self.assertRaises(Exception):
+            self.ar_fu.generated_field_order = ['author', 'title']
+            ar_fixture = self.ar_fu.fixup(data={
+                'title': lambda self, fixture, k: 'some title',
+                'author': raiseExceptionIfNoTitle,
+            })
+
+    def test_sets_attribute_with_generator_function_can_come_after_relation_generator_functions(self):
+        au_fixture = self.au_fu.fixup()
+
+        def raiseExceptionIfNoAuthor(self, fixture, k):
+            if not fixture.author:
+                raise Exception()
+            return 'some title'
+
+        self.ar_fu.generated_field_order = ['author', 'title']
+        ar_fixture = self.ar_fu.fixup(data={
+            'author': lambda self, fixture, k: au_fixture,
+            'title': raiseExceptionIfNoAuthor,
+        })
+        self._assert_relations_and_ids(au_fixture, ar_fixture)
+
+        with self.assertRaises(Exception):
+            self.ar_fu.generated_field_order = ['title', 'author']
+            ar_fixture = self.ar_fu.fixup(data={
+                'author': lambda self, fixture, k: au_fixture,
+                'title': raiseExceptionIfNoAuthor,
+            })
+
 
 class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
     def setUp(self):
