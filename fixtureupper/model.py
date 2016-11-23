@@ -243,7 +243,7 @@ class ModelFixtureUpper(BaseFixtureUpper):
             setattr(self, self.attr_key, v + 1)
         return v
 
-    def set_relation(fixture, related_fixtures, relation_prop):
+    def set_relation(self, fixture, related_fixtures, relation_prop):
         raise NotImplementedError
 
     def _is_generator_function(self, obj):
