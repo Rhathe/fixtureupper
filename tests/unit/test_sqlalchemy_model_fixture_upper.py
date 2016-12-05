@@ -11,6 +11,7 @@ from fixtureupper.register import UpperRegister
 from fixtureupper.defaults import inherit
 from tests.unit.models import Article, Author, CoWrite, Draft
 
+
 class BaseTestCase(TestCase):
     def setUp(self):
         self.SqlAlchemyModelFixtureUpper = UpperRegister('SqlAlchemyModel')
@@ -75,6 +76,24 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
 
         fixture = self.au_fu.fixup(data={})
         self.assertEqual(fixture.name, 'name: Author with id 151')
+
+    def test_sets_data_with_new_defaults(self):
+        self.au_fu.defaults = {
+            'name': 'Default Name',
+            'alias': 'Default Alias',
+        }
+        fixture = self.au_fu.fixup(data={}, defaults={'name': 'New Default Name'})
+        self.assertEqual(fixture.name, 'New Default Name')
+        self.assertIsNone(fixture.alias)
+
+    def test_sets_data_with_default_overrides(self):
+        self.au_fu.defaults = {
+            'name': 'Default Name',
+            'alias': 'Default Alias',
+        }
+        fixture = self.au_fu.fixup(data={}, default_overrides={'name': 'New Default Name'})
+        self.assertEqual(fixture.name, 'New Default Name')
+        self.assertEqual(fixture.alias, 'Default Alias')
 
     def test_fixes_up_multiple_fixtures(self):
         fixtures = self.au_fu.fixup(data=[

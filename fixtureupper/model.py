@@ -25,7 +25,6 @@ class ModelFixtureUpper(BaseFixtureUpper):
         if getattr(self, 'model', None):
             # Load the primary key of model into fixture upper
             self.attr_key = self.get_model_attr_key()
-            setattr(self, self.attr_key, self.start_id)
 
     @classmethod
     def get_upper_class_key(cls):
@@ -233,14 +232,9 @@ class ModelFixtureUpper(BaseFixtureUpper):
         raise NotImplementedError
 
     def get_model_id(self, inc=True):
-        """
-        Returns id for model
-        By default increments value of the id by 1
-        """
-
-        v = getattr(self, self.attr_key)
+        v = self._model_id
         if inc:
-            setattr(self, self.attr_key, v + 1)
+            self._model_id += 1
         return v
 
     def set_relation(self, fixture, related_fixtures, relation_prop):
@@ -328,11 +322,12 @@ class ModelFixtureUpper(BaseFixtureUpper):
             for key, val in iteritems(d):
                 setattr(fixtures[i], key, val)
 
-    def single_fixup(self, data=None, **kwargs):
-        data = data if isinstance(data, dict) else {}
+    def single_fixup(self, data=None, defaults=None, default_overrides={}, **kwargs):
+        data = data or {}
 
         # Get model values through mix of default values and passed in values
-        model_values = dict(self.defaults, **data)
+        defaults = dict(defaults or self.defaults, **default_overrides)
+        model_values = dict(defaults, **data)
 
         # Generate model's primary key value if it has a primary key
         if self.attr_key and not model_values.get(self.attr_key):
