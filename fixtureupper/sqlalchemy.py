@@ -68,24 +68,31 @@ class SqlAlchemyModelFixtureUpper(ModelFixtureUpper):
     def _get_relationship(cls, fixture, relation_prop):
         return cls.get_relationships(fixture=fixture).get(relation_prop)
 
-    def _set_relation_ids(self, fixture, related_fixture, relation_prop):
-        if not related_fixture:
-            return
-
+    def get_relation_keys(self, fixture, related_fixture, relation_prop):
         # set fixture's (i.e. Article)
         # foreign_key (i.e. main_author_id)
         # to primary_key of related_fixture (i.e. Author's author_id)
         relationship = self._get_relationship(fixture, relation_prop)
-        if not relationship:
+        relation_keys = []
+
+        if relationship:
+            local_columns = list(relationship.local_columns)[0]
+
+            # Only get keys if it's a foreign key of the model
+            if local_columns.foreign_keys:
+                relation_keys.append({
+                    'foreign_key': local_columns.key,
+                    'related_primary_key': list(local_columns.foreign_keys)[0].column.key,
+                })
+
+        return relation_keys
+
+    def _set_relation_ids(self, fixture, related_fixture, relation_prop):
+        if not related_fixture:
             return
 
-        local_columns = list(relationship.local_columns)[0]
-
-        # Only set keys if it's a foreign key of the model
-        if local_columns.foreign_keys:
-            foreign_key = local_columns.key
-            related_model_pk = list(local_columns.foreign_keys)[0].column.key
-            setattr(fixture, foreign_key, getattr(related_fixture, related_model_pk))
+        for k in self.get_relation_keys(fixture, related_fixture, relation_prop):
+            setattr(fixture, k['foreign_key'], getattr(related_fixture, k['related_primary_key']))
 
     def set_relation(self, fixture, related_fixtures, relation_prop):
         # Set fixture relation, backref's automatically made by sqlAlchemy
