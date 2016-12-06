@@ -98,7 +98,7 @@ class SqlAlchemyModelFixtureUpper(ModelFixtureUpper):
         # Set fixture relation, backref's automatically made by sqlAlchemy
         setattr(fixture, relation_prop, related_fixtures)
         _property = getattr(type(fixture), relation_prop).property
-        back_relation = _property.backref or _property.back_populates
+        back_relation = _property.back_populates or _property.backref
 
         if not isinstance(related_fixtures, list):
             related_fixtures = [related_fixtures]
