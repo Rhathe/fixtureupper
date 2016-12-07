@@ -86,8 +86,8 @@ class ModelFixtureUpper(BaseFixtureUpper):
         fields = cls.get_fixture_to_dict(fixture)
         return cls.make_obj_json(fixture, fields)
 
-    def get_current_fixtures_json(self):
-        return self.get_fixtures_json(self.get_all_fixtures())
+    def get_current_json_breakdown(self):
+        return self.breakdown_to_json(self.get_all_fixtures())
 
     @classmethod
     def sorted_models_key(cls, model_name):
@@ -122,16 +122,16 @@ class ModelFixtureUpper(BaseFixtureUpper):
         return _to_json
 
     @classmethod
-    def get_fixtures_json(cls, fixtures):
+    def breakdown_to_json(cls, fixtures):
         out = sorted(fixtures or [], key=cls.sorted_fixtures_key)
         return json.dumps(out, indent=4, default=cls.get_default_to_json(), sort_keys=True)
 
     @classmethod
-    def print_fixtures(cls, *args, **kwargs):
-        return cls.print_json_fixtures(*args, **kwargs)
+    def print_breakdown(cls, *args, **kwargs):
+        return cls.print_json_breakdown(*args, **kwargs)
 
     @classmethod
-    def _print_fixtures(cls, savedir, fname, data):
+    def _print_breakdown(cls, savedir, fname, data):
         """Function to print model fixtures into generated file"""
         if not os.path.exists(savedir):
             os.makedirs(savedir)
@@ -140,12 +140,12 @@ class ModelFixtureUpper(BaseFixtureUpper):
             fout.write(data)
 
     @classmethod
-    def print_json_fixtures(cls, savedir, fname, fixtures):
-        return cls._print_fixtures(savedir, fname, cls.get_fixtures_json(fixtures))
+    def print_json_breakdown(cls, savedir, fname, fixtures):
+        return cls._print_breakdown(savedir, fname, cls.breakdown_to_json(fixtures))
 
     @classmethod
-    def print_sql_fixtures(cls, savedir, fname, fixtures):
-        return cls._print_fixtures(savedir, fname, cls.stats_fixtures_to_sql(fixtures))
+    def print_sql_breakdown(cls, savedir, fname, fixtures):
+        return cls._print_breakdown(savedir, fname, cls.breakdown_to_sql(fixtures))
 
     @classmethod
     def sort_fixtures_by_model(cls, fixtures):
@@ -179,7 +179,7 @@ class ModelFixtureUpper(BaseFixtureUpper):
         raise NotImplementedError
 
     @classmethod
-    def stats_fixtures_to_sql(cls, fixtures):
+    def breakdown_to_sql(cls, fixtures):
         fixtures = cls.sort_fixtures_by_model(fixtures)
         statement_groups = []
 
@@ -204,7 +204,7 @@ class ModelFixtureUpper(BaseFixtureUpper):
         return '\n'.join(statement_groups)
 
     @classmethod
-    def get_fixtures_from_json(cls, json_str):
+    def fixup_from_json(cls, json_str):
         python_objects = cls.get_python_objects_for_json()
         po_by_name = {po.__name__: transforms for po, transforms in iteritems(python_objects)}
 
@@ -220,13 +220,13 @@ class ModelFixtureUpper(BaseFixtureUpper):
         return json.loads(json_str, object_hook=from_json)
 
     @classmethod
-    def read_fixtures_json(cls, fname):
+    def read_json_breakdown(cls, fname):
         """Read json file to get fixture data"""
         if not os.path.exists(fname):
             raise RuntimeError
 
         with open(fname, 'r') as data_file:
-            return cls.get_fixtures_from_json(data_file.read())
+            return cls.fixup_from_json(data_file.read())
 
     def get_model_attr_key(self, model=None):
         raise NotImplementedError
