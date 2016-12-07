@@ -338,12 +338,12 @@ class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
         return re.sub(re.compile('^[ ]+', re.MULTILINE), '', s.strip())
 
     def test_get_current_fixtures_json(self):
-        json_dict = json.loads(self.m_fu.get_current_fixtures_json())
+        json_dict = json.loads(self.m_fu.get_current_json_breakdown())
         self.assertEqual(json_dict, self.json_dict)
 
     def test_get_fixtures_json(self):
         json_str = json.dumps(self.json_dict)
-        fixtures = self.m_fu.get_fixtures_from_json(json_str)
+        fixtures = self.m_fu.fixup_from_json(json_str)
 
         self.assertEqual(fixtures[0].id, 250)
         self.assertEqual(fixtures[0].main_author_id, 150)
@@ -359,12 +359,12 @@ class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
 
     def test_get_fixtures_json_in_different_order(self):
         self.SqlAlchemyModelFixtureUpper.all_fixtures_order = ['Author', 'Article']
-        json_dict = json.loads(self.m_fu.get_current_fixtures_json())
+        json_dict = json.loads(self.m_fu.get_current_json_breakdown())
         expected_json_dict = self.json_dict[3:] + self.json_dict[:3]
         self.assertEqual(json_dict, expected_json_dict)
 
     def test_writes_as_sql(self):
-        query = self.m_fu.stats_fixtures_to_sql(self.m_fu.get_all_fixtures())
+        query = self.m_fu.breakdown_to_sql(self.m_fu.get_all_fixtures())
         self.assertEqual(
             self._standardize_white_space(query),
             self._standardize_white_space("""
@@ -381,7 +381,7 @@ class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
 
     def test_writes_as_sql_in_different_order(self):
         self.SqlAlchemyModelFixtureUpper.all_fixtures_order = ['Author', 'Article']
-        query = self.m_fu.stats_fixtures_to_sql(self.m_fu.get_all_fixtures())
+        query = self.m_fu.breakdown_to_sql(self.m_fu.get_all_fixtures())
         self.assertEqual(
             self._standardize_white_space(query),
             self._standardize_white_space("""
