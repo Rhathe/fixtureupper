@@ -6,6 +6,8 @@ A library to generate and save/load SqlAlchemy fixtures
 
 # Examples
 
+## The Fixup
+
 ```python
 from fixtureupper.register import UpperRegister
 from fixtureupper.defaults import inherit
@@ -71,4 +73,10 @@ article_5, article_6 = ar_fu.fixup(
     }
 )
 
+```
+
+## The Breakdown
+
+
+```python
 ```

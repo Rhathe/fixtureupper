@@ -2,49 +2,14 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 from future.utils import iteritems
 import json
-import re
 
 from mock import patch
-from unittest import TestCase
 
-from fixtureupper.register import UpperRegister
 from fixtureupper.defaults import inherit
-from tests.unit.models import Article, Author, CoWrite, Draft
+from tests.functional.sqlalchemy import BaseTestCase
 
 
-class BaseTestCase(TestCase):
-    def setUp(self):
-        self.SqlAlchemyModelFixtureUpper = UpperRegister('SqlAlchemyModel')
-
-        class AuthorFixtureUpper(self.SqlAlchemyModelFixtureUpper):
-            model = Author
-            defaults = {}
-
-        class ArticleFixtureUpper(self.SqlAlchemyModelFixtureUpper):
-            model = Article
-            defaults = {}
-
-        class DraftFixtureUpper(self.SqlAlchemyModelFixtureUpper):
-            model = Draft
-            defaults = {}
-
-        class CoWriteFixtureUpper(self.SqlAlchemyModelFixtureUpper):
-            model = CoWrite
-            defaults = {}
-
-        self.m_fu = self.SqlAlchemyModelFixtureUpper(start_id=150)
-        self.AuthorFixtureUpperClass = AuthorFixtureUpper
-        self.ArticleFixtureUpperClass = ArticleFixtureUpper
-        self.DraftFixtureUpperClass = DraftFixtureUpper
-        self.CoWriteFixtureUpperClass = CoWriteFixtureUpper
-
-        self.au_fu = self.m_fu.get_upper('Author')
-        self.ar_fu = self.m_fu.get_upper('Article', start_id=250)
-        self.dr_fu = self.m_fu.get_upper('Draft', start_id=300)
-        self.co_fu = self.m_fu.get_upper('CoWrite', start_id=370)
-
-
-class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
+class TestFixup(BaseTestCase):
     def test_register_fixture_uppers(self):
         self.assertEqual(type(self.m_fu.get_upper('Author')), self.AuthorFixtureUpperClass)
         self.assertEqual(type(self.m_fu.get_upper('Article')), self.ArticleFixtureUpperClass)
@@ -288,60 +253,7 @@ class TestSqlAlchemyModelFixtureUpper(BaseTestCase):
                 'title': raiseExceptionIfNoAuthor,
             })
 
-
-class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
-    def setUp(self):
-        super(TestSqlAlchemyModelFixtureUpperReadWrite, self).setUp()
-        self.json_dict = [
-            {
-                '__class__': 'Article',
-                '__value__': {'id': 250, 'main_author_id': 150}
-            },
-            {
-                '__class__': 'Article',
-                '__value__': {'id': 251, 'main_author_id': 150}
-            },
-            {
-                '__class__': 'Article',
-                '__value__': {
-                    'id': 252,
-                    'main_author_id': 151,
-                    'is_visible': True,
-                    'title': u'some title',
-                }
-            },
-            {
-                '__class__': 'Author',
-                '__value__': {'id': 150}
-            },
-            {
-                '__class__': 'Author',
-                '__value__': {'id': 151}
-            },
-        ]
-
-        ar_fixtures = self.ar_fu.fixup(data=[{}, {}, {
-            'title': 'some title',
-            'is_visible': True,
-        }])
-
-        au_fixtures = self.au_fu.fixup(data=[
-            {
-                'articles': ar_fixtures[:2],
-            },
-            {
-                'articles': ar_fixtures[-1:],
-            }
-        ])
-
-    def _standardize_white_space(self, s):
-        return re.sub(re.compile('^[ ]+', re.MULTILINE), '', s.strip())
-
-    def test_get_current_fixtures_json(self):
-        json_dict = json.loads(self.m_fu.get_current_json_breakdown())
-        self.assertEqual(json_dict, self.json_dict)
-
-    def test_get_fixtures_json(self):
+    def test_fixup_from_json(self):
         json_str = json.dumps(self.json_dict)
         fixtures = self.m_fu.fixup_from_json(json_str)
 
@@ -356,42 +268,3 @@ class TestSqlAlchemyModelFixtureUpperReadWrite(BaseTestCase):
 
         self.assertEqual(fixtures[3].id, 150)
         self.assertEqual(fixtures[4].id, 151)
-
-    def test_get_fixtures_json_in_different_order(self):
-        self.SqlAlchemyModelFixtureUpper.all_fixtures_order = ['Author', 'Article']
-        json_dict = json.loads(self.m_fu.get_current_json_breakdown())
-        expected_json_dict = self.json_dict[3:] + self.json_dict[:3]
-        self.assertEqual(json_dict, expected_json_dict)
-
-    def test_writes_as_sql(self):
-        query = self.m_fu.breakdown_to_sql(self.m_fu.get_all_fixtures())
-        self.assertEqual(
-            self._standardize_white_space(query),
-            self._standardize_white_space("""
-                INSERT INTO article (id, is_visible, main_author_id, title) VALUES
-                (250, NULL, 150, NULL),
-                (251, NULL, 150, NULL),
-                (252, true, 151, 'some title');
-
-                INSERT INTO author (id) VALUES
-                (150),
-                (151);
-            """)
-        )
-
-    def test_writes_as_sql_in_different_order(self):
-        self.SqlAlchemyModelFixtureUpper.all_fixtures_order = ['Author', 'Article']
-        query = self.m_fu.breakdown_to_sql(self.m_fu.get_all_fixtures())
-        self.assertEqual(
-            self._standardize_white_space(query),
-            self._standardize_white_space("""
-                INSERT INTO author (id) VALUES
-                (150),
-                (151);
-
-                INSERT INTO article (id, is_visible, main_author_id, title) VALUES
-                (250, NULL, 150, NULL),
-                (251, NULL, 150, NULL),
-                (252, true, 151, 'some title');
-            """)
-        )

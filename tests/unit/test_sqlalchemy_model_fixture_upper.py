@@ -109,3 +109,9 @@ class TestSetRelations(BaseTestMockFixtureUpper):
         e = E(id=2)
         self.MockFixtureUpper().set_relation(e, a, 'a')
         self.assertEqual(e.a_id, 1)
+
+    def test_a_e_with_no_id(self):
+        a = A()
+        e = E()
+        self.MockFixtureUpper().set_relation(e, a, 'a')
+        self.assertEqual(e.a_id, None)
