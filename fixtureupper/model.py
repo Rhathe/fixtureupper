@@ -94,7 +94,7 @@ class ModelFixtureUpper(BaseFixtureUpper):
 
     @classmethod
     def sorted_models_key(cls, model_name):
-        # FIXME: sort working depends on number of fixture models being less than 10000
+        # FIXME: sort working depends on number of fixture model classes being less than 10000
         try:
             order_num = cls.all_fixtures_order.index(model_name)
         except:
