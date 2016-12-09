@@ -4,7 +4,7 @@ from __future__ import (absolute_import, division,
 from unittest import TestCase
 
 from fixtureupper.register import UpperRegister
-from tests.unit.models import Article, Author
+from tests.models import Article, Author
 
 
 class TestUpperRegister(TestCase):
