@@ -56,7 +56,7 @@ author_3 = au_fu.fixup({'article': article_2})
 # Generate author with id=99, name='Author 99'
 author_4 = au_fu.fixup({
     'id': 99,
-    'name': lambda self, f, *args: 'Author %s' % str(f.id),
+    'name': lambda self, current_fixture, *args: 'Author %s' % str(current_fixture.id),
 })
 
 # Generate Article with id=102, author=author_4, main_author_id=4, title='Author 99'
@@ -69,14 +69,80 @@ article_4 = ar_fu.fixup({
 article_5, article_6 = ar_fu.fixup(
     [{'id': 1999}, {'id': 2999}],
     defaults={
-        'title': lambda self, f, key, *args: '%s %s' % (key, str(f.id))
+        'title': lambda self, current_fixture, key, *args: '%s %s' % (key, str(current_fixture.id))
     }
 )
 
+# Get array of Article and Author with both ids=3000, title and name='JSON 3000' from json string
+article_7, author_5 = new_fixtureupper.fixup_from_json("""
+[
+    {
+        "__class__": "Article",
+        "__value__": {
+            "id": 3000,
+            "title": "JSON 3000"
+        }
+    },
+    {
+        "__class__": "Author",
+        "__value__": {
+            "id": 3000,
+            "name": "JSON 3000"
+        }
+    }
+]
+""")
+
+
+# Get fixtures from file
+file_fixtures = new_fixtureupper.read_json_breakdown('path/to/breakdown.json')
 ```
 
 ## The Breakdown
 
 
 ```python
+# Fixup fixtures
+new_fixtureupper = FixtureUpperRegister()
+new_fixtureupper.get_upper('Article').fixup()
+new_fixtureupper.get_upper('Author').fixup([{'id': 10, 'name': 'Author Name'}, {}])
+
+# Breakdown to json string:
+# [
+#     {
+#         "__class__": "Article",
+#         "__value__": {
+#             "id": 1
+#         }
+#     },
+#     {
+#         "__class__": "Author",
+#         "__value__": {
+#             "id": 10,
+#             "name": "Author Name"
+#         }
+#     },
+#     {
+#         "__class__": "Author",
+#         "__value__": {
+#             "id": 1
+#         }
+#     }
+# ]
+json_breakdown = new_fixtureupper.get_current_json_breakdown()
+
+# Print json breakdown to path/to/new_breakdown.json
+new_fixtureupper.print_json_breakdown('path/to', 'new_breakdown.json', json_breakdown)
+
+# Breakdown to sql string:
+# INSERT INTO article (id) VALUES
+# (1);
+#
+# INSERT INTO author (id, name) VALUES
+# (10, 'Author Name'),
+# (1, NULL);
+sql_breakdown = new_fixtureupper.get_current_sql_breakdown()
+
+# Print sql breakdown to path/to/new_breakdown.sql
+new_fixtureupper.print_sql_breakdown('path/to', 'new_breakdown.sql', sql_breakdown)
 ```

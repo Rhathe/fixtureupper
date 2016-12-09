@@ -89,6 +89,9 @@ class ModelFixtureUpper(BaseFixtureUpper):
     def get_current_json_breakdown(self):
         return self.breakdown_to_json(self.get_all_fixtures())
 
+    def get_current_sql_breakdown(self):
+        return self.breakdown_to_sql(self.get_all_fixtures())
+
     @classmethod
     def sorted_models_key(cls, model_name):
         # FIXME: sort working depends on number of fixture models being less than 10000

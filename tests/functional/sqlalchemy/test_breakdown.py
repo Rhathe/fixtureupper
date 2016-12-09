@@ -39,7 +39,7 @@ class TestBreakdown(BaseTestCase):
         self.assertEqual(json_dict, expected_json_dict)
 
     def test_writes_as_sql(self):
-        query = self.m_fu.breakdown_to_sql(self.m_fu.get_all_fixtures())
+        query = self.m_fu.get_current_sql_breakdown()
         self.assertEqual(
             self._standardize_white_space(query),
             self._standardize_white_space("""
@@ -56,7 +56,7 @@ class TestBreakdown(BaseTestCase):
 
     def test_writes_as_sql_in_different_order(self):
         self.SqlAlchemyModelFixtureUpper.all_fixtures_order = ['Author', 'Article']
-        query = self.m_fu.breakdown_to_sql(self.m_fu.get_all_fixtures())
+        query = self.m_fu.get_current_sql_breakdown()
         self.assertEqual(
             self._standardize_white_space(query),
             self._standardize_white_space("""
