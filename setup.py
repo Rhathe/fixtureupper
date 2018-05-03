@@ -55,7 +55,7 @@ setup(
     ],
 
     install_requires=[
-        'future >= 0.14.3, < 0.16',
+        'future >= 0.14.3, < 0.17',
         'SQLAlchemy',
     ],
 
