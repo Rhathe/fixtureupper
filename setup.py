@@ -36,7 +36,7 @@ class ToxWithRecreate(Tox):
 
 setup(
     name='fixtureupper',
-    version='0.2.9',
+    version='0.2.10',
     packages=['fixtureupper'],
     url='https://github.com/Rhathe/fixtureupper',
     license='MIT',
@@ -55,7 +55,7 @@ setup(
     ],
 
     install_requires=[
-        'future >= 0.14.3, < 0.16',
+        'future >= 0.14.3, < 0.17',
         'SQLAlchemy',
     ],
 
